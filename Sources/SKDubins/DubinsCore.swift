@@ -8,11 +8,13 @@ import CoreGraphics
 
 class DubinsCore {
     
-    private func RandDouble() -> CGFloat {
+    public static let DELTA: CGFloat = 0.05
+    
+    private static func RandDouble() -> CGFloat {
         return CGFloat.random(in: 0.0 ... CGFloat(RAND_MAX))
     }
 
-    private func Norm(lhs: CGPoint, rhs: CGPoint) -> CGFloat {
+    public static func Norm(lhs: CGPoint, rhs: CGPoint) -> CGFloat {
       return sqrt((rhs.x - lhs.x) * (rhs.x - lhs.x) +
           (rhs.y - lhs.y) * (rhs.y - lhs.y));
     }
@@ -24,7 +26,7 @@ class DubinsCore {
     ///   - c2: Circle 2
     /// - Returns: The first two results are the outer tangents if second
     /// results exist, they are the inner tangents.
-    static func TangentLines(c1: Circle, c2: Circle) -> Array<CGPoint> {
+    public static func TangentLines(c1: Circle, c2: Circle) -> Array<TangentLine> {
         var x1: CGFloat = c1.GetX()
         var y1: CGFloat = c1.GetY()
         var x2: CGFloat = c2.GetX()
@@ -33,7 +35,7 @@ class DubinsCore {
         var r2: CGFloat = c2.GetRadius()
         var d_sq: CGFloat = pow(x2-x1,2) + pow(y2-y1,2)
         
-        var returnVec : Array<CGPoint> = []
+        var returnVec : Array<TangentLine> = []
         
         if (d_sq < (r1-r2) * (r1-r2)) {
             /// we may have a problem, the circles are either intersecting, one is
@@ -67,8 +69,8 @@ class DubinsCore {
                 var nx: CGFloat = vx * c - sign2 * h * vy
                 var ny: CGFloat = vy * c + sign2 * h * vx
                 
-                returnVec.append(CGPoint(x: x1 + r1 * nx, y: y1 + r1 * ny))
-                returnVec.append(CGPoint(x: x2 + sign1 * r2 * nx, y: y2 + sign1 * r2 * ny))
+                returnVec.append(TangentLine(p1: CGPoint(x: x1 + r1 * nx, y: y1 + r1 * ny),
+                                             p2: CGPoint(x: x2 + sign1 * r2 * nx, y: y2 + sign1 * r2 * ny)))
             }
         }
         
@@ -86,7 +88,7 @@ class DubinsCore {
     ///   - radius: radius of the arc
     ///   - left: indicates a circle direction
     /// - Returns: The length of the arc
-    static func ArcLength(center: CGPoint, lhs: CGPoint, rhs: CGPoint, radius: CGFloat, left: Bool) -> CGFloat {
+    public static func ArcLength(center: CGPoint, lhs: CGPoint, rhs: CGPoint, radius: CGFloat, left: Bool) -> CGFloat {
         
         /// ArcLength is defined as the radius of the circle \* theta, the angle between
         /// the two points along the circumference

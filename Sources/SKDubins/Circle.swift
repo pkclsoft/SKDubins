@@ -8,6 +8,10 @@ import CoreGraphics
 
 class Circle{
 
+    // this should be:
+    // var centre: CGPoint
+    // var radius: CGFloat
+    
     private var values: [CGFloat]
 
     init() {

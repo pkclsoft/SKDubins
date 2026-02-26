@@ -13,6 +13,7 @@ class DubinsTrajectory {
     
     init() {
         type = .RSR
+        controls = []
         length = 1e9
     }
-};
+}
