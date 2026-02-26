@@ -30,7 +30,7 @@ class AgentController {
     }
 
     private var m_name: String
-    private var m_myState: AgentState
+    private var m_myState: AgentState = AgentState()
     private var m_nextTrajectory: DubinsTrajectory
     private var m_goal: AgentState
 
@@ -40,50 +40,58 @@ class AgentController {
     private var m_velocity: Int
 
     init(velocity: Int = 1, wheelbase: CGFloat = WHEELBASE, minRadius : CGFloat = MINRADIUS, name: String = "DubinAgent") {
-        
+        m_velocity = velocity
+        m_name = name
+        m_wheelbase = abs(wheelbase)
+        m_minRadius = abs(minRadius)
     }
     
     func Update() -> Bool {
-        if (m_nextTrajectory.controls.empty()) {
+        if (m_nextTrajectory.controls.isEmpty) {
             return false
         }
         
-        var nextC: Array<Control> = []
-        
-        for i in 0 ..< m_velocity {
-            while (nextC->timesteps < 1.0 && nextC->timesteps <= 0.0){
-                nextC = m_nextTrajectory.controls.erase(nextC);
-                if (nextC == m_nextTrajectory.controls.end())
-                    return false;
-            }
-            
-            nextC->timesteps--;
-            
-            //update stuff
-            //update position
-            m_myState.pos.first += DELTA*cos(m_myState.theta);
-            m_myState.pos.second += DELTA*sin(m_myState.theta);
-            
-            //get turning radius
-            double turningRadius = 0.0;
-            bool straightLine = true;
-            
-            if (abs(nextC->steeringAngle) > 1e-5){
-                turningRadius = m_wheelbase / sin(nextC->steeringAngle);
-                straightLine = false;
-            }
-            
-            if(!straightLine){
-                m_myState.theta += (DELTA)/turningRadius;
-                if (m_myState.theta > PI)
-                    m_myState.theta -= 2.0*PI;
-                else if (m_myState.theta < -PI)
-                            m_myState.theta += 2.0*PI;
+        if var nextC: Control = m_nextTrajectory.controls.first {
+            for i in 0 ..< m_velocity {
+                while (nextC.timesteps < 1.0 && nextC.timesteps <= 0.0) {
+                    nextC = m_nextTrajectory.controls.removeFirst()
+                    
+                    if (m_nextTrajectory.controls.isEmpty) {
+                        return false
+                    }
+                }
+                
+                nextC.timesteps -= 1
+                
+                //update stuff
+                //update position
+                m_myState.pos.x += DubinsCore.DELTA * cos(m_myState.theta)
+                m_myState.pos.y += DubinsCore.DELTA * sin(m_myState.theta)
+                
+                //get turning radius
+                var turningRadius: CGFloat = 0.0
+                var straightLine: Bool = true
+                
+                if (abs(nextC.steeringAngle) > 1e-5) {
+                    turningRadius = m_wheelbase / sin(nextC.steeringAngle)
+                    straightLine = false
+                }
+                
+                if (!straightLine){
+                    m_myState.theta += DubinsCore.DELTA / turningRadius
+                    
+                    if (m_myState.theta > CGFloat.pi) {
+                        m_myState.theta -= 2.0 * CGFloat.pi
+                    } else if (m_myState.theta < -CGFloat.pi) {
+                        m_myState.theta += 2.0 * CGFloat.pi
+                    }
+                }
             }
         }
 
-        cout << "Agent state after update: "  << m_myState << endl;
-        return true;
+        print("Agent state after update: \(m_myState)")
+        
+        return true
     }
     
     func SetState(start: AgentState) {
@@ -91,7 +99,9 @@ class AgentController {
     }
     
     func SetGoal(goal: AgentState) {
+        m_goal = goal
         
+        m_nextTrajectory = DubinsCore.DubinsShortestPath(m_minRadius, m_wheelbase, m_myState, goal)
     }
     
     func SetVelocity(velocity: Int) {
