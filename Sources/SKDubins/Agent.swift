@@ -89,7 +89,7 @@ class AgentController {
             }
         }
 
-        print("Agent state after update: \(m_myState)")
+        print("Agent state after update: \(m_myState.debugDescription())")
         
         return true
     }

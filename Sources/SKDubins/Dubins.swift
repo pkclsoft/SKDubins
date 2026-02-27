@@ -74,7 +74,7 @@ class Dubins {
             shortest = next
         }
         
-        print("To reach query point: \(m_goal) from: \(m_start) Agent chose \(shortest.type) trajectory with path length: \(shortest.length)")
+        print("To reach query point: \(m_goal.debugDescription()) from: \(m_start.debugDescription()) Agent chose \(shortest.type) trajectory with path length: \(shortest.length)")
         
         return shortest
     }
