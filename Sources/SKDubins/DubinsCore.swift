@@ -5,6 +5,7 @@
 //  Created by Peter Easdown on 26/2/2026.
 //
 import CoreGraphics
+import CGExtKit
 
 class DubinsCore {
     
@@ -27,13 +28,13 @@ class DubinsCore {
     /// - Returns: The first two results are the outer tangents if second
     /// results exist, they are the inner tangents.
     public static func TangentLines(c1: Circle, c2: Circle) -> Array<TangentLine> {
-        var x1: CGFloat = c1.GetX()
-        var y1: CGFloat = c1.GetY()
-        var x2: CGFloat = c2.GetX()
-        var y2: CGFloat = c2.GetY()
-        var r1: CGFloat = c1.GetRadius()
-        var r2: CGFloat = c2.GetRadius()
-        var d_sq: CGFloat = pow(x2-x1,2) + pow(y2-y1,2)
+        let x1: CGFloat = c1.GetX()
+        let y1: CGFloat = c1.GetY()
+        let x2: CGFloat = c2.GetX()
+        let y2: CGFloat = c2.GetY()
+        let r1: CGFloat = c1.GetRadius()
+        let r2: CGFloat = c2.GetRadius()
+        let d_sq: CGFloat = pow(x2-x1,2) + pow(y2-y1,2)
         
         var returnVec : Array<TangentLine> = []
         
@@ -52,22 +53,22 @@ class DubinsCore {
             // tangent lines remain, but there are no internal tangent lines
         }
 
-        var d: CGFloat = sqrt(d_sq)
-        var vx: CGFloat = (x2 - x1) / d
-        var vy: CGFloat = (y2 - y1) / d
+        let d: CGFloat = sqrt(d_sq)
+        let vx: CGFloat = (x2 - x1) / d
+        let vy: CGFloat = (y2 - y1) / d
         
         for sign1 in stride(from: 1.0, to: -1.0, by: -2.0) {
-            var c: CGFloat = (r1 - sign1 * r2) / d
+            let c: CGFloat = (r1 - sign1 * r2) / d
             
             if (c * c > 1.0) {
                 continue //want to be subtracting small from large, not adding
             }
             
-            var h: CGFloat = sqrt(max(0.0, 1.0 - c * c))
+            let h: CGFloat = sqrt(max(0.0, 1.0 - c * c))
 
             for sign2 in stride(from: 1.0, to: -1.0, by: -2.0) {
-                var nx: CGFloat = vx * c - sign2 * h * vy
-                var ny: CGFloat = vy * c + sign2 * h * vx
+                let nx: CGFloat = vx * c - sign2 * h * vy
+                let ny: CGFloat = vy * c + sign2 * h * vx
                 
                 returnVec.append(TangentLine(p1: CGPoint(x: x1 + r1 * nx, y: y1 + r1 * ny),
                                              p2: CGPoint(x: x2 + sign1 * r2 * nx, y: y2 + sign1 * r2 * ny)))
@@ -110,15 +111,9 @@ class DubinsCore {
         /// rather have the larger angle (2PI - abs(angle_returned). Vice versa for positive angles in a
         /// right-turn circle.
 
-        var vec1: CGPoint
-        var vec2: CGPoint
+        let vec1: CGPoint = lhs - center
+        let vec2: CGPoint = rhs - center
         
-        vec1.x = lhs.x - center.x
-        vec1.y = lhs.y - center.y
-
-        vec2.x = rhs.x - center.x
-        vec2.y = rhs.y - center.y
-
         var theta: CGFloat = atan2(vec2.y, vec2.x) - atan2(vec1.y,vec1.x)
         
         if (theta < -1e-6 && left) {
@@ -128,7 +123,5 @@ class DubinsCore {
         }
 
         return abs(theta * radius)
-
     }
-    
 }

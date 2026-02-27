@@ -31,8 +31,8 @@ class AgentController {
 
     private var m_name: String
     private var m_myState: AgentState = AgentState()
-    private var m_nextTrajectory: DubinsTrajectory
-    private var m_goal: AgentState
+    private var m_nextTrajectory: DubinsTrajectory = DubinsTrajectory()
+    private var m_goal: AgentState = AgentState()
 
     //dynamics properties
     private var m_wheelbase: CGFloat
@@ -52,7 +52,7 @@ class AgentController {
         }
         
         if var nextC: Control = m_nextTrajectory.controls.first {
-            for i in 0 ..< m_velocity {
+            for _ in 0 ..< m_velocity {
                 while (nextC.timesteps < 1.0 && nextC.timesteps <= 0.0) {
                     nextC = m_nextTrajectory.controls.removeFirst()
                     
@@ -101,7 +101,7 @@ class AgentController {
     func SetGoal(goal: AgentState) {
         m_goal = goal
         
-        m_nextTrajectory = DubinsCore.DubinsShortestPath(m_minRadius, m_wheelbase, m_myState, goal)
+        m_nextTrajectory = Dubins.DubinsShortestPath(minTurnRadius: &m_minRadius, wheelbase: &m_wheelbase, start: &m_myState, goal: &m_goal)
     }
     
     func SetVelocity(velocity: Int) {
