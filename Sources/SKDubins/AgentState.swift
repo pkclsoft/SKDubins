@@ -19,4 +19,17 @@ class AgentState{
 
     var pos: CGPoint
     var theta: CGFloat
+    
+    func value(atIndex index: Int) -> CGFloat {
+        switch index {
+            case 0:
+                return pos.x
+            case 1:
+                return pos.y
+            case 2:
+                return theta
+            default:
+                return .infinity
+        }
+    }
 };
