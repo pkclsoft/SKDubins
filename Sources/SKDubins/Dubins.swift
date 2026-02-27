@@ -4,397 +4,574 @@
 //
 //  Created by Peter Easdown on 27/2/2026.
 //
+// This file comprises a swift implementation of the Dubins class as found in the github
+// repo:
+//
+//    https://github.com/AndrewWalker/Dubins-Curves/tree/master
+//
+// The intention of this Swift package is to provide a means to create a path using the
+// mechanisms provided by Dubins-Curves that can in turn be used with a SpriteKit game
+// for animating a sprite through the computed path.
+//
+
+/*
+ * Copyright (c) 2008-2018, Andrew Walker
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 import CoreGraphics
 
 class Dubins {
     
-    //calculate shortest trajectory to get to _query configuration
-    public static func DubinsShortestPath(minTurnRadius: inout CGFloat, wheelbase: inout CGFloat, start: inout AgentState, goal: inout AgentState) -> DubinsTrajectory {
-        var agentLeft: Circle = Circle()
-        var agentRight: Circle = Circle()
-        var queryLeft: Circle = Circle()
-        var queryRight: Circle = Circle()
-        let m_start = start
-        let m_goal = goal
-        let m_maxSteering = asin(wheelbase / minTurnRadius)
-        let m_minTurnRadius = minTurnRadius
+    enum DubinsPathType : Int {
+        case LSL = 0
+        case LSR
+        case RSL
+        case RSR
+        case RLR
+        case LRL
+    }
+
+    class DubinsPath {
+        /* the initial configuration */
+        var qi: AgentState
+        /* the lengths of the three segments */
+        var param: AgentState
+        /* model forward velocity / model angular velocity */
+        var rho: CGFloat
+        /* the path type described */
+        var type: DubinsPathType
         
-        var theta: CGFloat = m_start.theta
-        theta += CGFloat.pi / 2.0
-        
-        if (theta > CGFloat.pi) {
-            theta -= 2.0 * CGFloat.pi
+        init(qi: AgentState, param: AgentState, rho: CGFloat, type: DubinsPathType) {
+            self.qi = qi
+            self.param = param
+            self.rho = rho
+            self.type = type
         }
-        
-        agentLeft.SetPos(x: m_start.pos.x + m_minTurnRadius*cos(theta), y: m_start.pos.y + m_minTurnRadius*sin(theta))
-        agentLeft.SetRadius(radius: m_minTurnRadius)
-        
-        theta = m_start.theta
-        theta -= CGFloat.pi / 2.0
-        
-        if (theta < -CGFloat.pi) {
-            theta += 2.0 * CGFloat.pi
-        }
-        
-        agentRight.SetPos(x: m_start.pos.x + m_minTurnRadius*cos(theta), y: m_start.pos.y + m_minTurnRadius*sin(theta))
-        agentRight.SetRadius(radius: m_minTurnRadius)
-        
-        theta = m_goal.theta
-        theta += CGFloat.pi / 2.0
-        
-        if (theta > CGFloat.pi) {
-            theta -= 2.0 * CGFloat.pi
-        }
-        
-        queryLeft.SetPos(x: m_goal.pos.x + m_minTurnRadius*cos(theta), y: m_goal.pos.y + m_minTurnRadius*sin(theta))
-        queryLeft.SetRadius(radius: m_minTurnRadius)
-        
-        theta = m_goal.theta
-        theta -= CGFloat.pi / 2.0
-        
-        if (theta < -CGFloat.pi) {
-            theta += 2.0 * CGFloat.pi
-        }
-        
-        queryRight.SetPos(x: m_goal.pos.x + m_minTurnRadius*cos(theta), y: m_goal.pos.y + m_minTurnRadius*sin(theta))
-        queryRight.SetRadius(radius: m_minTurnRadius)
-        
-        var shortest: DubinsTrajectory = DubinsTrajectory()
-        var next: DubinsTrajectory = DubinsTrajectory()
-        
-        next = BestCSCTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, agentLeft: &agentLeft, agentRight: &agentRight, queryLeft: &queryLeft, queryRight: &queryRight)
-        
-        if (next.length < shortest.length) {
-            shortest = next
-        }
-        
-        next = BestCCCTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, agentLeft: &agentLeft,agentRight: &agentRight,queryLeft: &queryLeft,queryRight: &queryRight)
-        
-        if (next.length < shortest.length) {
-            shortest = next
-        }
-        
-        print("To reach query point: \(m_goal.debugDescription()) from: \(m_start.debugDescription()) Agent chose \(shortest.type) trajectory with path length: \(shortest.length)")
-        
-        return shortest
+    }
+
+    enum DubinsResult {
+        case EDUBOK           /* No error */
+        case EDUBCOCONFIGS    /* Colocated configurations */
+        case EDUBPARAM        /* Path parameterisitation error */
+        case EDUBBADRHO       /* the rho value is invalid */
+        case EDUBNOPATH       /* no connection between configurations with this word */
     }
     
-    private static func BestCSCTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, agentLeft: inout Circle, agentRight: inout Circle, queryLeft: inout Circle, queryRight: inout Circle) -> DubinsTrajectory {
-        let RRTangents: Array<TangentLine> = DubinsCore.TangentLines(c1: agentRight, c2: queryRight)
-        let LLTangents: Array<TangentLine> = DubinsCore.TangentLines(c1: agentLeft, c2: queryLeft)
-        let RLTangents: Array<TangentLine> = DubinsCore.TangentLines(c1: agentRight, c2: queryLeft)
-        let LRTangents: Array<TangentLine> = DubinsCore.TangentLines(c1: agentLeft, c2: queryRight)
+    /**
+     * Callback function for path sampling
+     *
+     * @note the q parameter is a configuration
+     * @note the t parameter is the distance along the path
+     * @note the user_data parameter is forwarded from the caller
+     * @note return non-zero to denote sampling should be stopped
+     */
+//    typedef int (*DubinsPathSamplingCallback)(double q[3], double t, void* user_data);
+    public typealias DubinsPathSamplingCallback = ((AgentState, CGFloat, Void) -> DubinsResult)
+
+    static let EPSILON: CGFloat = (10e-10)
+
+    enum SegmentType: Int {
+        case L_SEG
+        case S_SEG
+        case R_SEG
+    }
+
+    /* The segment types for each of the Path types */
+    let DIRDATA: [[SegmentType]] = [
+        [ .L_SEG, .S_SEG, .L_SEG ],
+        [ .L_SEG, .S_SEG, .R_SEG ],
+        [ .R_SEG, .S_SEG, .L_SEG ],
+        [ .R_SEG, .S_SEG, .R_SEG ],
+        [ .R_SEG, .L_SEG, .R_SEG ],
+        [ .L_SEG, .R_SEG, .L_SEG ]]
+
+    class DubinsIntermediateResults {
+        var alpha: CGFloat = 0.0
+        var beta: CGFloat = 0.0
+        var d: CGFloat = 0.0
+        var sa: CGFloat = 0.0
+        var sb: CGFloat = 0.0
+        var ca: CGFloat = 0.0
+        var cb: CGFloat = 0.0
+        var c_ab: CGFloat = 0.0
+        var d_sq: CGFloat = 0.0
+    }
+
+
+    func dubins_word(input: DubinsIntermediateResults, pathType: DubinsPathType, output: AgentState) -> DubinsResult {
+        var result: DubinsResult
         
-        var shortest: DubinsTrajectory = DubinsTrajectory()
-        var next: DubinsTrajectory = DubinsTrajectory()
-        
-        ///
-        /// calculate RSR
-        ///
-        next = RSRTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, RRTangents: RRTangents, agentRight: &agentRight, queryRight: &queryRight)
-        
-        if (next.length < shortest.length) {
-            shortest = next
+        switch(pathType)
+        {
+            case .LSL:
+            result = dubins_LSL(input: input, output: output)
+            case .RSL:
+            result = dubins_RSL(input: input, output: output)
+            case .LSR:
+            result = dubins_LSR(input: input, output: output)
+            case .RSR:
+            result = dubins_RSR(input: input, output: output)
+            case .LRL:
+            result = dubins_LRL(input: input, output: output)
+            case .RLR:
+            result = dubins_RLR(input: input, output: output)
         }
         
-        ///
-        /// calculate LSL
-        ///
-        next = LSLTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, LLTangents: LLTangents, agentLeft: &agentLeft, queryLeft: &queryLeft)
-        
-        if (next.length < shortest.length) {
-            shortest = next
-        }
-        
-        ///
-        /// calculate RSL
-        ///
-        next = RSLTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, RLTangents: RLTangents, agentRight: &agentRight, queryLeft: &queryLeft)
-        
-        if (next.length < shortest.length) {
-            shortest = next
-        }
-        
-        ///
-        /// calculate LSR
-        ///
-        next = LSRTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, LRTangents: LRTangents, agentLeft: &agentLeft, queryRight: &queryRight)
-        
-        if (next.length < shortest.length) {
-            shortest = next
-        }
-        
-        return shortest
-        
+        return result
     }
     
-    private static func BestCCCTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, agentLeft: inout Circle, agentRight: inout Circle, queryLeft: inout Circle, queryRight: inout Circle) -> DubinsTrajectory {
-        var shortest: DubinsTrajectory = DubinsTrajectory()
-        var next: DubinsTrajectory = DubinsTrajectory()
+    func dubins_intermediate_results(input: DubinsIntermediateResults, q0: AgentState, q1: AgentState, rho: CGFloat) -> DubinsResult {
+        var dx, dy, D, d, theta, alpha, beta: CGFloat
         
-        //find the relative angle for L and right
-        var theta: CGFloat = 0.0
-        var D: CGFloat = DubinsCore.Norm(lhs: agentRight.GetPos(), rhs: queryRight.GetPos())
+        if (rho <= 0.0) {
+            return .EDUBBADRHO
+        }
+
+        dx = q1.pos.x - q0.pos.x
+        dy = q1.pos.y - q0.pos.y
+        D = sqrt( dx * dx + dy * dy )
+        d = D / rho
+        theta = 0.0
+
+        /* test required to prevent domain errors if dx=0 and dy=0 */
+        if (d > 0.0) {
+            theta = mod2pi(theta: atan2( dy, dx ))
+        }
         
-        ///
-        /// calculate RLR
-        ///
-        if (D < 4.0 * m_minTurnRadius) {
-            theta = acos(D / (4.0 * m_minTurnRadius))
+        alpha = mod2pi(theta: q0.theta - theta)
+        beta  = mod2pi(theta: q1.theta - theta)
+
+        input.alpha = alpha
+        input.beta  = beta
+        input.d     = d
+        input.sa    = sin(alpha)
+        input.sb    = sin(beta)
+        input.ca    = cos(alpha)
+        input.cb    = cos(beta)
+        input.c_ab  = cos(alpha - beta)
+        input.d_sq  = d * d
+
+        return .EDUBOK
+
+    }
+
+    /**
+     * Floating point modulus suitable for rings
+     *
+     * fmod doesn't behave correctly for angular quantities, this function does
+     */
+    func fmodr(x: CGFloat, y: CGFloat) -> CGFloat {
+        return x - y * floor(x / y);
+    }
+
+    func mod2pi(theta: CGFloat) -> CGFloat {
+        return fmodr(x: theta, y: 2 * CGFloat.pi)
+    }
+
+    /**
+     * Generate a path from an initial configuration to
+     * a target configuration, with a specified maximum turning
+     * radii
+     *
+     * A configuration is (x, y, theta), where theta is in radians, with zero
+     * along the line x = 0, and counter-clockwise is positive
+     *
+     * @param path  - the resultant path
+     * @param q0    - a configuration specified as an array of x, y, theta
+     * @param q1    - a configuration specified as an array of x, y, theta
+     * @param rho   - turning radius of the vehicle (forward velocity divided by maximum angular velocity)
+     * @return      - non-zero on error
+     */
+    func dubins_shortest_path(path: DubinsPath, q0: AgentState, q1: AgentState, rho: CGFloat) -> DubinsResult {
+        var errcode: DubinsResult
+        var input: DubinsIntermediateResults = DubinsIntermediateResults()
+        var params: AgentState = AgentState()
+        var cost: CGFloat
+        var best_cost: CGFloat = CGFloat.infinity
+        var best_word: Int = -1
+        
+        errcode = dubins_intermediate_results(input: input, q0: q0, q1: q1, rho: rho)
+        
+        if (errcode != .EDUBOK) {
+            return errcode
+        }
+
+        path.qi = q0
+        path.rho = rho
+     
+        for i in 0 ..< 6 {
+            var pathType: DubinsPathType = DubinsPathType(rawValue: i)!
+            errcode = dubins_word(input: input, pathType: pathType, output: params)
             
-            theta += atan2(queryRight.GetY() - agentRight.GetY(),  queryRight.GetX() - agentRight.GetX())
-            
-            next = RLRTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, interiorTheta: &theta, agentRight: &agentRight, queryRight: &queryRight)
-            
-            if (next.length < shortest.length) {
-                shortest = next
+            if (errcode == .EDUBOK) {
+                cost = params.pos.x + params.pos.y + params.theta
+                
+                if (cost < best_cost) {
+                    best_word = i
+                    best_cost = cost
+                    path.param = params
+                    path.type = pathType
+                }
             }
         }
         
-        ///
-        /// calculate LRL
-        ///
-        D = DubinsCore.Norm(lhs: agentLeft.GetPos(), rhs: queryLeft.GetPos())
+        if (best_word == -1) {
+            return .EDUBNOPATH
+        }
         
-        if (D < 4.0*m_minTurnRadius) {
-            theta = acos(D/(4.0 * m_minTurnRadius))
+        return .EDUBOK
+    }
+
+    /**
+     * Generate a path with a specified word from an initial configuration to
+     * a target configuration, with a specified turning radius
+     *
+     * @param path     - the resultant path
+     * @param q0       - a configuration specified as an array of x, y, theta
+     * @param q1       - a configuration specified as an array of x, y, theta
+     * @param rho      - turning radius of the vehicle (forward velocity divided by maximum angular velocity)
+     * @param pathType - the specific path type to use
+     * @return         - non-zero on error
+     */
+    func dubins_path(path: DubinsPath, q0: AgentState, q1: AgentState, rho: CGFloat, pathType: DubinsPathType) -> DubinsResult {
+        var errcode: DubinsResult
+        var input: DubinsIntermediateResults = DubinsIntermediateResults()
+
+        errcode = dubins_intermediate_results(input: input, q0: q0, q1: q1, rho: rho)
+        
+        if (errcode == .EDUBOK) {
+            var params: AgentState = AgentState()
             
-            theta = atan2(queryLeft.GetY() - agentLeft.GetY(),  queryLeft.GetX() - agentLeft.GetX()) - theta
+            errcode = dubins_word(input: input, pathType: pathType, output: params)
             
-            next = LRLTrajectory(m_start: m_start, m_goal: m_goal, m_minTurnRadius: m_minTurnRadius, m_maxSteering: m_maxSteering, interiorTheta: &theta, agentLeft: &agentLeft, queryLeft: &queryLeft)
-            
-            if (next.length < shortest.length) {
-                shortest = next
+            if (errcode == .EDUBOK) {
+                path.param = params
+                path.qi = q0
+                path.rho = rho
+                path.type = pathType
             }
         }
         
-        return shortest
+        return errcode
     }
-    
-    private static func RSRTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, RRTangents: Array<TangentLine>, agentRight: inout Circle, queryRight: inout Circle) -> DubinsTrajectory {
+
+    /**
+     * Calculate the length of an initialised path
+     *
+     * @param path - the path to find the length of
+     */
+    func dubins_path_length(path: DubinsPath) -> CGFloat {
+        var length: CGFloat = 0.0
         
-        let next: DubinsTrajectory = DubinsTrajectory()
-        next.type = .RSR
+        length += path.param.pos.x
+        length += path.param.pos.y
+        length += path.param.theta
+        length = length * path.rho
         
-        var arcL1, arcL2, arcL3: CGFloat //arcLengths
-        var nextControl: Control = Control()//for a control vector
-        
-        if (RRTangents.count > 0){
-            //tangent pts function returns outer tangents for RR connection first
-            nextControl.steeringAngle = -1.0 * m_maxSteering //right turn at max
-            arcL1 = DubinsCore.ArcLength(center: agentRight.GetPos(), lhs: m_start.pos, rhs: RRTangents[0].p1, radius: m_minTurnRadius, left: false)
-            
-            //don't use velocities because Dubins assumes unit forward velocity
-            nextControl.timesteps = arcL1 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = 0.0 //straight
-            arcL2 = DubinsCore.Norm(lhs: RRTangents[0].p1, rhs: RRTangents[0].p2)
-            nextControl.timesteps = arcL2 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = -1.0 * m_maxSteering //right turn at max
-            arcL3 = DubinsCore.ArcLength(center: queryRight.GetPos(), lhs: RRTangents[0].p2, rhs: m_goal.pos, radius: m_minTurnRadius, left: false)
-            
-            nextControl.timesteps = arcL3 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            //calculate total length
-            next.length =  arcL1 + arcL2 + arcL3
+        return length
+    }
+
+    /**
+     * Return the length of a specific segment in an initialized path
+     *
+     * @param path - the path to find the length of
+     * @param i    - the segment you to get the length of (0-2)
+     */
+    func dubins_segment_length(path: DubinsPath, i: Int) -> CGFloat {
+        if ((i < 0) || (i > 2)) {
+            return CGFloat.infinity
         }
         
-        return next
+        return path.param.value(atIndex: i) * path.rho
     }
-    
-    private static func LSLTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, LLTangents: Array<TangentLine>, agentLeft: inout Circle, queryLeft: inout Circle) -> DubinsTrajectory {
-        
-        let next: DubinsTrajectory = DubinsTrajectory()
-        next.type = .LSL
-        
-        var arcL1, arcL2, arcL3: CGFloat //arcLengths
-        var nextControl: Control = Control()//for a control vector
-        
-        if (LLTangents.count > 1) {
-            //tangent pts function returns outer tangents for LL connection second
-            nextControl.steeringAngle = m_maxSteering //left turn at max
-            arcL1 = DubinsCore.ArcLength(center: agentLeft.GetPos(), lhs: m_start.pos, rhs: LLTangents[1].p1, radius: m_minTurnRadius, left: true)
-            
-            //don't use velocities because Dubins assumes unit forward velocity
-            nextControl.timesteps = arcL1 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = 0.0 //straight
-            arcL2 = DubinsCore.Norm(lhs: LLTangents[1].p1, rhs: LLTangents[1].p2)
-            nextControl.timesteps = arcL2 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = m_maxSteering //left turn at max
-            arcL3 = DubinsCore.ArcLength(center: queryLeft.GetPos(), lhs: LLTangents[1].p2, rhs: m_goal.pos, radius: m_minTurnRadius, left: true)
-            
-            nextControl.timesteps = arcL3 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            //calculate total length
-            next.length =  arcL1 + arcL2 + arcL3
-        }
-        return next
-        
-    }
-    
-    private static func RSLTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, RLTangents: Array<TangentLine>, agentRight: inout Circle, queryLeft: inout Circle) -> DubinsTrajectory {
-        
-        let next: DubinsTrajectory = DubinsTrajectory()
-        next.type = .RSL
-        
-        var arcL1, arcL2, arcL3: CGFloat //arcLengths
-        var nextControl: Control = Control()//for a control vector
-        
-        if (RLTangents.count > 2) {
-            //tangent pts function returns inner tangents for RL connection third
-            nextControl.steeringAngle = -1.0 * m_maxSteering //right turn at max
-            arcL1 = DubinsCore.ArcLength(center: agentRight.GetPos(), lhs: m_start.pos, rhs: RLTangents[2].p1, radius: m_minTurnRadius, left: false)
-            
-            //don't use velocities because Dubins assumes unit forward velocity
-            nextControl.timesteps = arcL1 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = 0.0 //straight
-            arcL2 = DubinsCore.Norm(lhs: RLTangents[2].p1, rhs: RLTangents[2].p2)
-            nextControl.timesteps = arcL2 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = m_maxSteering //left turn at max
-            arcL3 = DubinsCore.ArcLength(center: queryLeft.GetPos(), lhs: RLTangents[2].p2, rhs: m_goal.pos, radius: m_minTurnRadius, left: true)
-            
-            nextControl.timesteps = arcL3 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            //calculate total length
-            next.length =  arcL1 + arcL2 + arcL3
+
+    /**
+     * Return the normalized length of a specific segment in an initialized path
+     *
+     * @param path - the path to find the length of
+     * @param i    - the segment you to get the length of (0-2)
+     */
+    func dubins_segment_length_normalized(path: DubinsPath, i: Int) -> CGFloat {
+        if( (i < 0) || (i > 2) ) {
+            return .infinity
         }
         
-        return next
-        
+        return path.param.value(atIndex: i)
     }
+
+    /**
+     * Extract an integer that represents which path type was used
+     *
+     * @param path    - an initialised path
+     * @return        - one of LSL, LSR, RSL, RSR, RLR or LRL
+     */
+    func dubins_path_type(path: DubinsPath) -> DubinsPathType {
+        return path.type
+    }
+
     
-    private static func LSRTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, LRTangents: Array<TangentLine>, agentLeft: inout Circle, queryRight: inout Circle) -> DubinsTrajectory {
+    func dubins_segment(t: CGFloat, qi: AgentState, qt: AgentState, type: SegmentType) {
+        var st: CGFloat = sin(qi.theta)
+        var ct: CGFloat = cos(qi.theta)
         
-        let next: DubinsTrajectory = DubinsTrajectory()
-        next.type = .LSR
-        
-        var arcL1, arcL2, arcL3: CGFloat //arcLengths
-        var nextControl: Control = Control()//for a control vector
-        
-        if (LRTangents.count > 3) {
-            //tangent pts function returns inner tangents for LR connection fourth
-            nextControl.steeringAngle = m_maxSteering //left turn at max
-            arcL1 = DubinsCore.ArcLength(center: agentLeft.GetPos(), lhs: m_start.pos, rhs: LRTangents[3].p1, radius: m_minTurnRadius, left: true)
-            //don't use velocities because Dubins assumes unit forward velocity
-            nextControl.timesteps = arcL1 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = 0.0 //straight
-            arcL2 = DubinsCore.Norm(lhs: LRTangents[3].p1, rhs: LRTangents[3].p2)
-            nextControl.timesteps = arcL2 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            nextControl.steeringAngle = -1.0 * m_maxSteering //right turn at max
-            arcL3 = DubinsCore.ArcLength(center: queryRight.GetPos(), lhs: LRTangents[3].p2, rhs: m_goal.pos, radius: m_minTurnRadius, left: false)
-            nextControl.timesteps = arcL3 / DubinsCore.DELTA
-            next.controls.append(nextControl)
-            
-            //calculate total length
-            next.length =  arcL1 + arcL2 + arcL3
+        if (type == .L_SEG) {
+            qt.pos.x = sin(qi.theta + t) - st
+            qt.pos.y = -cos(qi.theta + t) + ct
+            qt.theta = t
+        } else if (type == .R_SEG) {
+            qt.pos.x = -sin(qi.theta - t) + st
+            qt.pos.y = cos(qi.theta - t) - ct
+            qt.theta = -t
+        } else if (type == .S_SEG) {
+            qt.pos.x = ct * t
+            qt.pos.y = st * t
+            qt.theta = 0.0
         }
         
-        return next
-        
+        qt.pos.x += qi.pos.x
+        qt.pos.y += qi.pos.y
+        qt.theta += qi.theta
     }
     
-    //interior Angle is the relative angle C3 (the third circle to turn about) is from _agentRight
-    private static func RLRTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, interiorTheta: inout CGFloat, agentRight: inout Circle, queryRight: inout Circle) -> DubinsTrajectory {
+    /**
+     * Calculate the configuration along the path, using the parameter t
+     *
+     * @param path - an initialised path
+     * @param t    - a length measure, where 0 <= t < dubins_path_length(path)
+     * @param q    - the configuration result
+     * @returns    - non-zero if 't' is not in the correct range
+     */
+    func dubins_path_sample(path: DubinsPath, t: CGFloat, q: AgentState) -> DubinsResult {
+        /* tprime is the normalised variant of the parameter t */
+        var tprime: CGFloat = t / path.rho
+        var qi: AgentState = AgentState() /* The translated initial configuration */
+        var q1: AgentState = AgentState() /* end-of segment 1 */
+        var q2: AgentState = AgentState() /* end-of segment 2 */
+        let types: [SegmentType] = DIRDATA[path.type.rawValue]
+        var p1, p2: CGFloat
+
+        if (t < 0 || t > dubins_path_length(path: path)) {
+            return .EDUBPARAM
+        }
+
+        /* initial configuration */
+        qi.theta = path.qi.theta
+
+        /* generate the target configuration */
+        p1 = path.param.pos.x
+        p2 = path.param.pos.y
         
-        let next: DubinsTrajectory = DubinsTrajectory()
-        next.type = .RLR
+        dubins_segment(t: p1, qi: qi, qt: q1, type: types[0])
+        dubins_segment(t: p2, qi: q1, qt: q2, type: types[1])
         
-        var arcL1, arcL2, arcL3: CGFloat //arcLengths
-        var nextControl: Control = Control()//for a control vector
-        
-        let lCircle: Circle = Circle()
-        lCircle.SetRadius(radius: m_minTurnRadius)
-        
-        //compute tangent circle's pos using law of cosines + atan2 of line between agent and query circles
-        lCircle.SetPos(x: agentRight.GetX() + (2.0 * m_minTurnRadius * cos(interiorTheta)), y: agentRight.GetY() +
-                       (2.0 * m_minTurnRadius * sin(interiorTheta)))
-        
-        //compute tangent points given tangent circle
-        let agentTan: CGPoint = CGPoint(x: (lCircle.GetX() + agentRight.GetX())/2.0, y: (lCircle.GetY() + agentRight.GetY())/2.0)
-        let queryTan: CGPoint = CGPoint(x: (lCircle.GetX() + queryRight.GetX())/2.0, y: (lCircle.GetY() + queryRight.GetY())/2.0)
-        
-        
-        nextControl.steeringAngle = -1.0 * m_maxSteering //right turn at max
-        arcL1 = DubinsCore.ArcLength(center: agentRight.GetPos(), lhs: m_start.pos, rhs: agentTan, radius: m_minTurnRadius, left: false)
-        
-        //don't use velocities because Dubins assumes unit forward velocity
-        nextControl.timesteps = arcL1 / DubinsCore.DELTA
-        next.controls.append(nextControl)
-        
-        nextControl.steeringAngle = m_maxSteering //left turn at max
-        arcL2 = DubinsCore.ArcLength(center: lCircle.GetPos(), lhs: agentTan, rhs: queryTan, radius: m_minTurnRadius, left: true)
-        nextControl.timesteps = arcL2 / DubinsCore.DELTA
-        next.controls.append(nextControl)
-        
-        nextControl.steeringAngle =  -1.0 * m_maxSteering //right turn at max
-        arcL3 = DubinsCore.ArcLength(center: queryRight.GetPos(), lhs: queryTan, rhs: m_goal.pos, radius: m_minTurnRadius, left: false)
-        nextControl.timesteps = arcL3 / DubinsCore.DELTA
-        next.controls.append(nextControl)
-        
-        //calculate total length
-        next.length =  arcL1 + arcL2 + arcL3
-        
-        return next
-        
+        if (tprime < p1) {
+            dubins_segment(t: tprime, qi: qi, qt: q, type: types[0])
+        } else if (tprime < (p1 + p2)) {
+            dubins_segment(t: tprime - p1, qi: q1, qt: q,  type: types[1])
+        } else {
+            dubins_segment(t: tprime - p1 - p2, qi: q2, qt: q, type: types[2])
+        }
+
+        /* scale the target configuration, translate back to the original starting point */
+        q.pos.x = q.pos.x * path.rho + path.qi.pos.x
+        q.pos.y = q.pos.y * path.rho + path.qi.pos.y
+        q.theta = mod2pi(theta: q.theta)
+
+        return .EDUBOK
     }
-    
-    //interior Angle is the relative angle C3 (the third circle to turn about) is from _agentRight
-    private static func LRLTrajectory(m_start: AgentState, m_goal: AgentState, m_minTurnRadius: CGFloat, m_maxSteering: CGFloat, interiorTheta: inout CGFloat, agentLeft: inout Circle, queryLeft: inout Circle) -> DubinsTrajectory {
-        let next: DubinsTrajectory = DubinsTrajectory()
+
+    /**
+     * Walk along the path at a fixed sampling interval, calling the
+     * callback function at each interval
+     *
+     * The sampling process continues until the whole path is sampled, or the callback returns a non-zero value
+     *
+     * @param path      - the path to sample
+     * @param stepSize  - the distance along the path for subsequent samples
+     * @param cb        - the callback function to call for each sample
+     * @param user_data - optional information to pass on to the callback
+     *
+     * @returns - zero on successful completion, or the result of the callback
+     */
+    func dubins_path_sample_many(path: DubinsPath, stepSize: CGFloat, cb: DubinsPathSamplingCallback, user_data: Void) -> DubinsResult {
+        var retcode: DubinsResult = .EDUBOK
+
+        var q: AgentState = AgentState()
+        var x: CGFloat = 0.0
+        var length: CGFloat = dubins_path_length(path: path)
         
-        next.type = .LRL
+        while (x <  length) {
+            retcode = dubins_path_sample(path: path, t: x, q: q)
+            
+            if retcode != .EDUBOK {
+                return retcode
+            }
+            
+            retcode = cb(q, x, user_data)
+            
+            if (retcode != .EDUBOK) {
+                return retcode
+            }
+            
+            x += stepSize
+        }
         
-        var arcL1, arcL2, arcL3: CGFloat //arcLengths
-        var nextControl: Control = Control() //for a control vector
-        let rCircle: Circle = Circle()
-        
-        rCircle.SetRadius(radius: m_minTurnRadius)
-        
-        //compute tangent circle's pos using law of cosines + atan2 of line between agent and query circles
-        rCircle.SetPos(x: agentLeft.GetX() + (2.0 * m_minTurnRadius * cos(interiorTheta)), y: agentLeft.GetY() + (2.0 * m_minTurnRadius * sin(interiorTheta)))
-        
-        //compute tangent points given tangent circle
-        let agentTan = CGPoint(x: (rCircle.GetX() + agentLeft.GetX()) / 2.0, y: (rCircle.GetY() + agentLeft.GetY()) / 2.0)
-        let queryTan = CGPoint(x: (rCircle.GetX() + queryLeft.GetX()) / 2.0, y: (rCircle.GetY() + queryLeft.GetY()) / 2.0)
-        
-        nextControl.steeringAngle = m_maxSteering //left turn at max
-        arcL1 = DubinsCore.ArcLength(center: agentLeft.GetPos(), lhs: m_start.pos, rhs: agentTan, radius: m_minTurnRadius, left: true)
-        
-        //don't use velocities because Dubins assumes unit forward velocity
-        nextControl.timesteps = arcL1 / DubinsCore.DELTA
-        next.controls.append(nextControl)
-        
-        nextControl.steeringAngle = -1.0 * m_maxSteering //right turn at max
-        arcL2 = DubinsCore.ArcLength(center: rCircle.GetPos(), lhs: agentTan, rhs: queryTan, radius: m_minTurnRadius, left: false)
-        nextControl.timesteps = arcL2 / DubinsCore.DELTA
-        next.controls.append(nextControl)
-        
-        nextControl.steeringAngle = m_maxSteering //left turn at max
-        arcL3 = DubinsCore.ArcLength(center: queryLeft.GetPos(), lhs: queryTan, rhs: m_goal.pos, radius: m_minTurnRadius, left: true)
-        nextControl.timesteps = arcL3 / DubinsCore.DELTA
-        next.controls.append(nextControl)
-        
-        //calculate total length
-        next.length =  arcL1 + arcL2 + arcL3
-        return next
-        
+        return retcode
     }
+
+    /**
+     * Convenience function to identify the endpoint of a path
+     *
+     * @param path - an initialised path
+     * @param q    - the configuration result
+     */
+    func dubins_path_endpoint(path: DubinsPath, q: AgentState) -> DubinsResult {
+        return dubins_path_sample(path: path, t: dubins_path_length(path: path) - Dubins.EPSILON, q: q)
+    }
+
+    /**
+     * Convenience function to extract a subset of a path
+     *
+     * @param path    - an initialised path
+     * @param t       - a length measure, where 0 < t < dubins_path_length(path)
+     * @param newpath - the resultant path
+     */
+    func dubins_extract_subpath(path: DubinsPath, t: CGFloat, newPath: DubinsPath) -> DubinsResult {
+        /* calculate the true parameter */
+        var tprime: CGFloat = t / path.rho
+
+        if ((t < 0) || (t > dubins_path_length(path: path))) {
+            return .EDUBPARAM
+        }
+
+        /* copy most of the data */
+        newPath.qi = path.qi
+        newPath.rho = path.rho
+        newPath.type  = path.type
+
+        /* fix the parameters */
+        newPath.param.pos.x = fmin(path.param.pos.x, tprime)
+        newPath.param.pos.y = fmin(path.param.pos.y, tprime - newPath.param.pos.x)
+        newPath.param.theta = fmin( path.param.theta, tprime - newPath.param.pos.x - newPath.param.pos.y)
+        
+        return .EDUBOK
+    }
+
+    func dubins_LSL(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+        var tmp0, tmp1, p_sq: CGFloat
+        
+        tmp0 = input.d + input.sa - input.sb
+        p_sq = 2 + input.d_sq - (2 * input.c_ab) + (2 * input.d * (input.sa - input.sb))
+
+        if (p_sq >= 0) {
+            tmp1 = atan2((input.cb - input.ca), tmp0)
+            output.pos.x = mod2pi(theta: tmp1 - input.alpha)
+            output.pos.y = sqrt(p_sq)
+            output.theta = mod2pi(theta: input.beta - tmp1)
+            return .EDUBOK
+        }
+        
+        return .EDUBNOPATH
+    }
+
+
+    func dubins_RSR(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+        var tmp0: CGFloat = input.d - input.sa + input.sb
+        var p_sq: CGFloat = 2 + input.d_sq - (2 * input.c_ab) + (2 * input.d * (input.sb - input.sa))
+        
+        if (p_sq >= 0) {
+            var tmp1: CGFloat = atan2((input.ca - input.cb), tmp0)
+            output.pos.x = mod2pi(theta: input.alpha - tmp1)
+            output.pos.y = sqrt(p_sq)
+            output.theta = mod2pi(theta: tmp1 - input.beta)
+            
+            return .EDUBOK
+        }
+        return .EDUBNOPATH
+    }
+
+    func dubins_LSR(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+        var p_sq: CGFloat = -2 + (input.d_sq) + (2 * input.c_ab) + (2 * input.d * (input.sa + input.sb))
+        
+        if (p_sq >= 0) {
+            var p: CGFloat = sqrt(p_sq)
+            var tmp0: CGFloat = atan2((-input.ca - input.cb), (input.d + input.sa + input.sb)) - atan2(-2.0, p)
+            output.pos.x = mod2pi(theta: tmp0 - input.alpha)
+            output.pos.y = p
+            output.theta = mod2pi(theta: tmp0 - mod2pi(theta: input.beta))
+            
+            return .EDUBOK
+        }
+        
+        return .EDUBNOPATH
+    }
+
+    func dubins_RSL(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+        var p_sq: CGFloat = -2 + input.d_sq + (2 * input.c_ab) - (2 * input.d * (input.sa + input.sb))
+        
+        if (p_sq >= 0) {
+            var p: CGFloat = sqrt(p_sq)
+            var tmp0: CGFloat = atan2( (input.ca + input.cb), (input.d - input.sa - input.sb) ) - atan2(2.0, p)
+            output.pos.x = mod2pi(theta: input.alpha - tmp0)
+            output.pos.y = p
+            output.theta = mod2pi(theta: input.beta - tmp0)
+            
+            return .EDUBOK
+        }
+        
+        return .EDUBNOPATH
+    }
+
+    func dubins_RLR(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+        var tmp0: CGFloat = (6.0 - input.d_sq + 2 * input.c_ab + 2 * input.d * (input.sa - input.sb)) / 8.0
+        var phi: CGFloat  = atan2(input.ca - input.cb, input.d - input.sa + input.sb)
+        
+        if (abs(tmp0) <= 1) {
+            var p: CGFloat = mod2pi(theta: (2.0 * CGFloat.pi) - acos(tmp0))
+            var t: CGFloat = mod2pi(theta: input.alpha - phi + mod2pi(theta: p / 2.0))
+            output.pos.x = t;
+            output.pos.y = p;
+            output.theta = mod2pi(theta: input.alpha - input.beta - t + mod2pi(theta: p));
+            
+            return .EDUBOK
+        }
+        
+        return .EDUBNOPATH
+    }
+
+    func dubins_LRL(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+        var tmp0: CGFloat = (6.0 - input.d_sq + 2 * input.c_ab + 2 * input.d*(input.sb - input.sa)) / 8.0
+        var phi: CGFloat = atan2(input.ca - input.cb, input.d + input.sa - input.sb)
+        
+        if (abs(tmp0) <= 1) {
+            var p: CGFloat = mod2pi(theta:  2 * CGFloat.pi - acos( tmp0) );
+            var t: CGFloat = mod2pi(theta: -input.alpha - phi + p / 2.0)
+            output.pos.x = t
+            output.pos.y = p
+            output.theta = mod2pi(theta: mod2pi(theta: input.beta) - input.alpha - t + mod2pi(theta: p))
+            
+            return .EDUBOK
+        }
+        
+        return .EDUBNOPATH
+    }
+
 }
