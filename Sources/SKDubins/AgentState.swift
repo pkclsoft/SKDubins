@@ -13,7 +13,6 @@ class AgentState{
       theta = 0.0
     }
 
-    //print (X, Y, Theta)
     func debugDescription() -> String {
         return "(\(pos.x), \(pos.y), \(theta))"
     }
