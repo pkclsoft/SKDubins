@@ -40,51 +40,15 @@ import CoreGraphics
 
 class Dubins {
     
-    enum DubinsPathType : Int {
-        case LSL = 0
-        case LSR
-        case RSL
-        case RSR
-        case RLR
-        case LRL
-    }
-
-    class DubinsPath {
-        /* the initial configuration */
-        var qi: AgentState
-        /* the lengths of the three segments */
-        var param: AgentState
-        /* model forward velocity / model angular velocity */
-        var rho: CGFloat
-        /* the path type described */
-        var type: DubinsPathType
-        
-        init(qi: AgentState, param: AgentState, rho: CGFloat, type: DubinsPathType) {
-            self.qi = qi
-            self.param = param
-            self.rho = rho
-            self.type = type
-        }
-    }
-
-    enum DubinsResult {
-        case EDUBOK           /* No error */
-        case EDUBCOCONFIGS    /* Colocated configurations */
-        case EDUBPARAM        /* Path parameterisitation error */
-        case EDUBBADRHO       /* the rho value is invalid */
-        case EDUBNOPATH       /* no connection between configurations with this word */
-    }
-    
     /**
      * Callback function for path sampling
      *
      * @note the q parameter is a configuration
      * @note the t parameter is the distance along the path
      * @note the user_data parameter is forwarded from the caller
-     * @note return non-zero to denote sampling should be stopped
+     * @note return EDUABORT to denote sampling should be stopped
      */
-//    typedef int (*DubinsPathSamplingCallback)(double q[3], double t, void* user_data);
-    public typealias DubinsPathSamplingCallback = ((AgentState, CGFloat, Void) -> DubinsResult)
+    public typealias DubinsPathSamplingCallback = ((AgentState, CGFloat, inout Int?) -> DubinsResult)
 
     static let EPSILON: CGFloat = (10e-10)
 
@@ -95,7 +59,7 @@ class Dubins {
     }
 
     /* The segment types for each of the Path types */
-    let DIRDATA: [[SegmentType]] = [
+    static let DIRDATA: [[SegmentType]] = [
         [ .L_SEG, .S_SEG, .L_SEG ],
         [ .L_SEG, .S_SEG, .R_SEG ],
         [ .R_SEG, .S_SEG, .L_SEG ],
@@ -103,7 +67,7 @@ class Dubins {
         [ .R_SEG, .L_SEG, .R_SEG ],
         [ .L_SEG, .R_SEG, .L_SEG ]]
 
-    class DubinsIntermediateResults {
+    private class DubinsIntermediateResults {
         var alpha: CGFloat = 0.0
         var beta: CGFloat = 0.0
         var d: CGFloat = 0.0
@@ -115,30 +79,29 @@ class Dubins {
         var d_sq: CGFloat = 0.0
     }
 
-
-    func dubins_word(input: DubinsIntermediateResults, pathType: DubinsPathType, output: AgentState) -> DubinsResult {
+    private static func dubins_word(input: DubinsIntermediateResults, pathType: DubinsPathType, output: inout DubinsSegmentLengths) -> DubinsResult {
         var result: DubinsResult
         
         switch(pathType)
         {
             case .LSL:
-            result = dubins_LSL(input: input, output: output)
+            result = dubins_LSL(input: input, output: &output)
             case .RSL:
-            result = dubins_RSL(input: input, output: output)
+            result = dubins_RSL(input: input, output: &output)
             case .LSR:
-            result = dubins_LSR(input: input, output: output)
+            result = dubins_LSR(input: input, output: &output)
             case .RSR:
-            result = dubins_RSR(input: input, output: output)
+            result = dubins_RSR(input: input, output: &output)
             case .LRL:
-            result = dubins_LRL(input: input, output: output)
+            result = dubins_LRL(input: input, output: &output)
             case .RLR:
-            result = dubins_RLR(input: input, output: output)
+            result = dubins_RLR(input: input, output: &output)
         }
         
         return result
     }
     
-    func dubins_intermediate_results(input: DubinsIntermediateResults, q0: AgentState, q1: AgentState, rho: CGFloat) -> DubinsResult {
+    private static func dubins_intermediate_results(input: DubinsIntermediateResults, q0: AgentState, q1: AgentState, rho: CGFloat) -> DubinsResult {
         var dx, dy, D, d, theta, alpha, beta: CGFloat
         
         if (rho <= 0.0) {
@@ -178,11 +141,11 @@ class Dubins {
      *
      * fmod doesn't behave correctly for angular quantities, this function does
      */
-    func fmodr(x: CGFloat, y: CGFloat) -> CGFloat {
+    private static func fmodr(x: CGFloat, y: CGFloat) -> CGFloat {
         return x - y * floor(x / y);
     }
 
-    func mod2pi(theta: CGFloat) -> CGFloat {
+    private static func mod2pi(theta: CGFloat) -> CGFloat {
         return fmodr(x: theta, y: 2 * CGFloat.pi)
     }
 
@@ -200,13 +163,13 @@ class Dubins {
      * @param rho   - turning radius of the vehicle (forward velocity divided by maximum angular velocity)
      * @return      - non-zero on error
      */
-    func dubins_shortest_path(path: DubinsPath, q0: AgentState, q1: AgentState, rho: CGFloat) -> DubinsResult {
+    static func dubins_shortest_path(path: DubinsPath, q0: AgentState, q1: AgentState, rho: CGFloat) -> DubinsResult {
         var errcode: DubinsResult
-        var input: DubinsIntermediateResults = DubinsIntermediateResults()
-        var params: AgentState = AgentState()
+        let input: DubinsIntermediateResults = DubinsIntermediateResults()
+        var params: DubinsSegmentLengths = DubinsSegmentLengths()
         var cost: CGFloat
         var best_cost: CGFloat = CGFloat.infinity
-        var best_word: Int = -1
+        var best_word: DubinsPathType? = nil
         
         errcode = dubins_intermediate_results(input: input, q0: q0, q1: q1, rho: rho)
         
@@ -217,15 +180,14 @@ class Dubins {
         path.qi = q0
         path.rho = rho
      
-        for i in 0 ..< 6 {
-            var pathType: DubinsPathType = DubinsPathType(rawValue: i)!
-            errcode = dubins_word(input: input, pathType: pathType, output: params)
+        for pathType in DubinsPathType.allCases {
+            errcode = dubins_word(input: input, pathType: pathType, output: &params)
             
             if (errcode == .EDUBOK) {
-                cost = params.pos.x + params.pos.y + params.theta
+                cost = params.totalLength()
                 
                 if (cost < best_cost) {
-                    best_word = i
+                    best_word = pathType
                     best_cost = cost
                     path.param = params
                     path.type = pathType
@@ -233,7 +195,7 @@ class Dubins {
             }
         }
         
-        if (best_word == -1) {
+        if (best_word == nil) {
             return .EDUBNOPATH
         }
         
@@ -251,16 +213,16 @@ class Dubins {
      * @param pathType - the specific path type to use
      * @return         - non-zero on error
      */
-    func dubins_path(path: DubinsPath, q0: AgentState, q1: AgentState, rho: CGFloat, pathType: DubinsPathType) -> DubinsResult {
+    static func dubins_path(path: DubinsPath, q0: AgentState, q1: AgentState, rho: CGFloat, pathType: DubinsPathType) -> DubinsResult {
         var errcode: DubinsResult
-        var input: DubinsIntermediateResults = DubinsIntermediateResults()
+        let input: DubinsIntermediateResults = DubinsIntermediateResults()
 
         errcode = dubins_intermediate_results(input: input, q0: q0, q1: q1, rho: rho)
         
         if (errcode == .EDUBOK) {
-            var params: AgentState = AgentState()
+            var params: DubinsSegmentLengths = DubinsSegmentLengths()
             
-            errcode = dubins_word(input: input, pathType: pathType, output: params)
+            errcode = dubins_word(input: input, pathType: pathType, output: &params)
             
             if (errcode == .EDUBOK) {
                 path.param = params
@@ -272,65 +234,10 @@ class Dubins {
         
         return errcode
     }
-
-    /**
-     * Calculate the length of an initialised path
-     *
-     * @param path - the path to find the length of
-     */
-    func dubins_path_length(path: DubinsPath) -> CGFloat {
-        var length: CGFloat = 0.0
-        
-        length += path.param.pos.x
-        length += path.param.pos.y
-        length += path.param.theta
-        length = length * path.rho
-        
-        return length
-    }
-
-    /**
-     * Return the length of a specific segment in an initialized path
-     *
-     * @param path - the path to find the length of
-     * @param i    - the segment you to get the length of (0-2)
-     */
-    func dubins_segment_length(path: DubinsPath, i: Int) -> CGFloat {
-        if ((i < 0) || (i > 2)) {
-            return CGFloat.infinity
-        }
-        
-        return path.param.value(atIndex: i) * path.rho
-    }
-
-    /**
-     * Return the normalized length of a specific segment in an initialized path
-     *
-     * @param path - the path to find the length of
-     * @param i    - the segment you to get the length of (0-2)
-     */
-    func dubins_segment_length_normalized(path: DubinsPath, i: Int) -> CGFloat {
-        if( (i < 0) || (i > 2) ) {
-            return .infinity
-        }
-        
-        return path.param.value(atIndex: i)
-    }
-
-    /**
-     * Extract an integer that represents which path type was used
-     *
-     * @param path    - an initialised path
-     * @return        - one of LSL, LSR, RSL, RSR, RLR or LRL
-     */
-    func dubins_path_type(path: DubinsPath) -> DubinsPathType {
-        return path.type
-    }
-
     
-    func dubins_segment(t: CGFloat, qi: AgentState, qt: AgentState, type: SegmentType) {
-        var st: CGFloat = sin(qi.theta)
-        var ct: CGFloat = cos(qi.theta)
+    static func dubins_segment(t: CGFloat, qi: AgentState, qt: AgentState, type: SegmentType) {
+        let st: CGFloat = sin(qi.theta)
+        let ct: CGFloat = cos(qi.theta)
         
         if (type == .L_SEG) {
             qt.pos.x = sin(qi.theta + t) - st
@@ -359,16 +266,16 @@ class Dubins {
      * @param q    - the configuration result
      * @returns    - non-zero if 't' is not in the correct range
      */
-    func dubins_path_sample(path: DubinsPath, t: CGFloat, q: AgentState) -> DubinsResult {
+    static func dubins_path_sample(path: DubinsPath, t: CGFloat, q: AgentState) -> DubinsResult {
         /* tprime is the normalised variant of the parameter t */
-        var tprime: CGFloat = t / path.rho
-        var qi: AgentState = AgentState() /* The translated initial configuration */
-        var q1: AgentState = AgentState() /* end-of segment 1 */
-        var q2: AgentState = AgentState() /* end-of segment 2 */
-        let types: [SegmentType] = DIRDATA[path.type.rawValue]
+        let tprime: CGFloat = t / path.rho
+        let qi: AgentState = AgentState() /* The translated initial configuration */
+        let q1: AgentState = AgentState() /* end-of segment 1 */
+        let q2: AgentState = AgentState() /* end-of segment 2 */
+        let types: [SegmentType] = DIRDATA[path.type!.rawValue]
         var p1, p2: CGFloat
 
-        if (t < 0 || t > dubins_path_length(path: path)) {
+        if !(0.0 ... path.length()).contains(t) {
             return .EDUBPARAM
         }
 
@@ -376,8 +283,8 @@ class Dubins {
         qi.theta = path.qi.theta
 
         /* generate the target configuration */
-        p1 = path.param.pos.x
-        p2 = path.param.pos.y
+        p1 = path.param.length[0]
+        p2 = path.param.length[1]
         
         dubins_segment(t: p1, qi: qi, qt: q1, type: types[0])
         dubins_segment(t: p2, qi: q1, qt: q2, type: types[1])
@@ -411,12 +318,12 @@ class Dubins {
      *
      * @returns - zero on successful completion, or the result of the callback
      */
-    func dubins_path_sample_many(path: DubinsPath, stepSize: CGFloat, cb: DubinsPathSamplingCallback, user_data: Void) -> DubinsResult {
+    static func dubins_path_sample_many(path: DubinsPath, stepSize: CGFloat, cb: DubinsPathSamplingCallback, user_data: inout Int?) -> DubinsResult {
         var retcode: DubinsResult = .EDUBOK
 
-        var q: AgentState = AgentState()
+        let q: AgentState = AgentState()
         var x: CGFloat = 0.0
-        var length: CGFloat = dubins_path_length(path: path)
+        let length: CGFloat = path.length()
         
         while (x <  length) {
             retcode = dubins_path_sample(path: path, t: x, q: q)
@@ -425,9 +332,9 @@ class Dubins {
                 return retcode
             }
             
-            retcode = cb(q, x, user_data)
+            retcode = cb(q, x, &user_data)
             
-            if (retcode != .EDUBOK) {
+            if (retcode == .EDUABORT) {
                 return retcode
             }
             
@@ -443,8 +350,8 @@ class Dubins {
      * @param path - an initialised path
      * @param q    - the configuration result
      */
-    func dubins_path_endpoint(path: DubinsPath, q: AgentState) -> DubinsResult {
-        return dubins_path_sample(path: path, t: dubins_path_length(path: path) - Dubins.EPSILON, q: q)
+    static func dubins_path_endpoint(path: DubinsPath, q: AgentState) -> DubinsResult {
+        return dubins_path_sample(path: path, t: path.length() - Dubins.EPSILON, q: q)
     }
 
     /**
@@ -454,11 +361,11 @@ class Dubins {
      * @param t       - a length measure, where 0 < t < dubins_path_length(path)
      * @param newpath - the resultant path
      */
-    func dubins_extract_subpath(path: DubinsPath, t: CGFloat, newPath: DubinsPath) -> DubinsResult {
+    static func dubins_extract_subpath(path: DubinsPath, t: CGFloat, newPath: DubinsPath) -> DubinsResult {
         /* calculate the true parameter */
-        var tprime: CGFloat = t / path.rho
+        let tprime: CGFloat = t / path.rho
 
-        if ((t < 0) || (t > dubins_path_length(path: path))) {
+        if ((t < 0) || (t > path.length())) {
             return .EDUBPARAM
         }
 
@@ -468,14 +375,14 @@ class Dubins {
         newPath.type  = path.type
 
         /* fix the parameters */
-        newPath.param.pos.x = fmin(path.param.pos.x, tprime)
-        newPath.param.pos.y = fmin(path.param.pos.y, tprime - newPath.param.pos.x)
-        newPath.param.theta = fmin( path.param.theta, tprime - newPath.param.pos.x - newPath.param.pos.y)
+        newPath.param.length[0] = fmin(path.param.length[0], tprime)
+        newPath.param.length[1] = fmin(path.param.length[1], tprime - newPath.param.length[0])
+        newPath.param.length[2] = fmin(path.param.length[2], tprime - newPath.param.length[0] - newPath.param.length[1])
         
         return .EDUBOK
     }
 
-    func dubins_LSL(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
+    private static func dubins_LSL(input: DubinsIntermediateResults, output: inout DubinsSegmentLengths) -> DubinsResult {
         var tmp0, tmp1, p_sq: CGFloat
         
         tmp0 = input.d + input.sa - input.sb
@@ -483,9 +390,9 @@ class Dubins {
 
         if (p_sq >= 0) {
             tmp1 = atan2((input.cb - input.ca), tmp0)
-            output.pos.x = mod2pi(theta: tmp1 - input.alpha)
-            output.pos.y = sqrt(p_sq)
-            output.theta = mod2pi(theta: input.beta - tmp1)
+            output.length[0] = mod2pi(theta: tmp1 - input.alpha)
+            output.length[1] = sqrt(p_sq)
+            output.length[2] = mod2pi(theta: input.beta - tmp1)
             return .EDUBOK
         }
         
@@ -493,46 +400,30 @@ class Dubins {
     }
 
 
-    func dubins_RSR(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
-        var tmp0: CGFloat = input.d - input.sa + input.sb
-        var p_sq: CGFloat = 2 + input.d_sq - (2 * input.c_ab) + (2 * input.d * (input.sb - input.sa))
+    private static func dubins_RSR(input: DubinsIntermediateResults, output: inout DubinsSegmentLengths) -> DubinsResult {
+        let tmp0: CGFloat = input.d - input.sa + input.sb
+        let p_sq: CGFloat = 2 + input.d_sq - (2 * input.c_ab) + (2 * input.d * (input.sb - input.sa))
         
         if (p_sq >= 0) {
-            var tmp1: CGFloat = atan2((input.ca - input.cb), tmp0)
-            output.pos.x = mod2pi(theta: input.alpha - tmp1)
-            output.pos.y = sqrt(p_sq)
-            output.theta = mod2pi(theta: tmp1 - input.beta)
+            let tmp1: CGFloat = atan2((input.ca - input.cb), tmp0)
+            output.length[0] = mod2pi(theta: input.alpha - tmp1)
+            output.length[1] = sqrt(p_sq)
+            output.length[2] = mod2pi(theta: tmp1 - input.beta)
             
             return .EDUBOK
         }
         return .EDUBNOPATH
     }
 
-    func dubins_LSR(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
-        var p_sq: CGFloat = -2 + (input.d_sq) + (2 * input.c_ab) + (2 * input.d * (input.sa + input.sb))
+    private static func dubins_LSR(input: DubinsIntermediateResults, output: inout DubinsSegmentLengths) -> DubinsResult {
+        let p_sq: CGFloat = -2 + (input.d_sq) + (2 * input.c_ab) + (2 * input.d * (input.sa + input.sb))
         
         if (p_sq >= 0) {
-            var p: CGFloat = sqrt(p_sq)
-            var tmp0: CGFloat = atan2((-input.ca - input.cb), (input.d + input.sa + input.sb)) - atan2(-2.0, p)
-            output.pos.x = mod2pi(theta: tmp0 - input.alpha)
-            output.pos.y = p
-            output.theta = mod2pi(theta: tmp0 - mod2pi(theta: input.beta))
-            
-            return .EDUBOK
-        }
-        
-        return .EDUBNOPATH
-    }
-
-    func dubins_RSL(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
-        var p_sq: CGFloat = -2 + input.d_sq + (2 * input.c_ab) - (2 * input.d * (input.sa + input.sb))
-        
-        if (p_sq >= 0) {
-            var p: CGFloat = sqrt(p_sq)
-            var tmp0: CGFloat = atan2( (input.ca + input.cb), (input.d - input.sa - input.sb) ) - atan2(2.0, p)
-            output.pos.x = mod2pi(theta: input.alpha - tmp0)
-            output.pos.y = p
-            output.theta = mod2pi(theta: input.beta - tmp0)
+            let p: CGFloat = sqrt(p_sq)
+            let tmp0: CGFloat = atan2((-input.ca - input.cb), (input.d + input.sa + input.sb)) - atan2(-2.0, p)
+            output.length[0] = mod2pi(theta: tmp0 - input.alpha)
+            output.length[1] = p
+            output.length[2] = mod2pi(theta: tmp0 - mod2pi(theta: input.beta))
             
             return .EDUBOK
         }
@@ -540,16 +431,32 @@ class Dubins {
         return .EDUBNOPATH
     }
 
-    func dubins_RLR(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
-        var tmp0: CGFloat = (6.0 - input.d_sq + 2 * input.c_ab + 2 * input.d * (input.sa - input.sb)) / 8.0
-        var phi: CGFloat  = atan2(input.ca - input.cb, input.d - input.sa + input.sb)
+    private static func dubins_RSL(input: DubinsIntermediateResults, output: inout DubinsSegmentLengths) -> DubinsResult {
+        let p_sq: CGFloat = -2 + input.d_sq + (2 * input.c_ab) - (2 * input.d * (input.sa + input.sb))
+        
+        if (p_sq >= 0) {
+            let p: CGFloat = sqrt(p_sq)
+            let tmp0: CGFloat = atan2( (input.ca + input.cb), (input.d - input.sa - input.sb) ) - atan2(2.0, p)
+            output.length[0] = mod2pi(theta: input.alpha - tmp0)
+            output.length[1] = p
+            output.length[2] = mod2pi(theta: input.beta - tmp0)
+            
+            return .EDUBOK
+        }
+        
+        return .EDUBNOPATH
+    }
+
+    private static func dubins_RLR(input: DubinsIntermediateResults, output: inout DubinsSegmentLengths) -> DubinsResult {
+        let tmp0: CGFloat = (6.0 - input.d_sq + 2 * input.c_ab + 2 * input.d * (input.sa - input.sb)) / 8.0
+        let phi: CGFloat  = atan2(input.ca - input.cb, input.d - input.sa + input.sb)
         
         if (abs(tmp0) <= 1) {
-            var p: CGFloat = mod2pi(theta: (2.0 * CGFloat.pi) - acos(tmp0))
-            var t: CGFloat = mod2pi(theta: input.alpha - phi + mod2pi(theta: p / 2.0))
-            output.pos.x = t;
-            output.pos.y = p;
-            output.theta = mod2pi(theta: input.alpha - input.beta - t + mod2pi(theta: p));
+            let p: CGFloat = mod2pi(theta: (2.0 * CGFloat.pi) - acos(tmp0))
+            let t: CGFloat = mod2pi(theta: input.alpha - phi + mod2pi(theta: p / 2.0))
+            output.length[0] = t;
+            output.length[1] = p;
+            output.length[2] = mod2pi(theta: input.alpha - input.beta - t + mod2pi(theta: p));
             
             return .EDUBOK
         }
@@ -557,16 +464,16 @@ class Dubins {
         return .EDUBNOPATH
     }
 
-    func dubins_LRL(input: DubinsIntermediateResults, output: AgentState) -> DubinsResult {
-        var tmp0: CGFloat = (6.0 - input.d_sq + 2 * input.c_ab + 2 * input.d*(input.sb - input.sa)) / 8.0
-        var phi: CGFloat = atan2(input.ca - input.cb, input.d + input.sa - input.sb)
+    private static func dubins_LRL(input: DubinsIntermediateResults, output: inout DubinsSegmentLengths) -> DubinsResult {
+        let tmp0: CGFloat = (6.0 - input.d_sq + 2 * input.c_ab + 2 * input.d*(input.sb - input.sa)) / 8.0
+        let phi: CGFloat = atan2(input.ca - input.cb, input.d + input.sa - input.sb)
         
         if (abs(tmp0) <= 1) {
-            var p: CGFloat = mod2pi(theta:  2 * CGFloat.pi - acos( tmp0) );
-            var t: CGFloat = mod2pi(theta: -input.alpha - phi + p / 2.0)
-            output.pos.x = t
-            output.pos.y = p
-            output.theta = mod2pi(theta: mod2pi(theta: input.beta) - input.alpha - t + mod2pi(theta: p))
+            let p: CGFloat = mod2pi(theta:  2 * CGFloat.pi - acos( tmp0) );
+            let t: CGFloat = mod2pi(theta: -input.alpha - phi + p / 2.0)
+            output.length[0] = t
+            output.length[1] = p
+            output.length[2] = mod2pi(theta: mod2pi(theta: input.beta) - input.alpha - t + mod2pi(theta: p))
             
             return .EDUBOK
         }
