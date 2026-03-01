@@ -1,8 +1,8 @@
 //
-//  DubinsPathType.swift
+//  AgentState.swift
 //  SKDubins
 //
-//  Created by Peter Easdown on 28/2/2026.
+//  Created by Peter Easdown on 26/2/2026.
 //
 // This file comprises a swift implementation of the Dubins class as found in the github
 // repo:
@@ -36,14 +36,40 @@
  * THE SOFTWARE.
  */
 
-
 import CoreGraphics
+import CGExtKit
 
-enum DubinsPathType : Int, CaseIterable {
-    case LSL = 0
-    case LSR
-    case RSL
-    case RSR
-    case RLR
-    case LRL
+/// A configuration describes (typically) the start and end of the path.  It can also be used (and is) to
+/// describe a sampled point along the path.
+class Configuration {
+    
+    /// Initialises an empty/default configuration.
+    init() {
+        pos = CGPointZero
+        theta = 0.0
+    }
+    
+    init(withPos: CGPoint, andTheta: CGFloat) {
+        pos = withPos
+        theta = andTheta
+    }
+    
+    /// Returns a string representation of the object.
+    /// - Returns: A simple string.
+    func debugDescription() -> String {
+        return "(\(pos.x), \(pos.y), \(theta))"
+    }
+    
+    /// The position of the configuration along the path.
+    var pos: CGPoint
+    /// The heading of the agent at the position provided by `pos`.
+    var theta: CGFloat
+}
+
+extension Configuration {
+    
+    static func == (left: Configuration, right: Configuration) -> Bool {
+        return CGPoint.equals(left.pos, right.pos) && CGFloat.equals(left.theta, right.theta)
+    }
+    
 }

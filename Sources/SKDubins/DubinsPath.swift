@@ -40,35 +40,33 @@
 import CoreGraphics
 
 class DubinsPath {
-    
-    
-    
-    /* the initial configuration */
-    var qi: AgentState
-    /* the lengths of the three segments */
+
+    /// the initial configuration
+    var qi: Configuration
+    /// the lengths of the three segments
     var param: DubinsSegmentLengths
-    /* model forward velocity / model angular velocity */
+    /// model forward velocity / model angular velocity
     var rho: CGFloat
-    /* the path type described */
+    /// the path type described 
     var type: DubinsPathType?
     
     init() {
-        qi = AgentState()
+        qi = Configuration()
         param = DubinsSegmentLengths()
         rho = 0.0
         type = nil
     }
     
-    init(qi: AgentState, param: DubinsSegmentLengths, rho: CGFloat, type: DubinsPathType) {
+    init(qi: Configuration, param: DubinsSegmentLengths, rho: CGFloat, type: DubinsPathType) {
         self.qi = qi
         self.param = param
         self.rho = rho
         self.type = type
     }
     
-    /**
-     * Calculate the length of an initialised path
-     */
+    ///
+    /// Calculate the length of an initialised path
+    ///
     func length() -> CGFloat {
         var length: CGFloat = self.param.totalLength()
         
@@ -78,22 +76,24 @@ class DubinsPath {
     }
 
     
-    /**
-     * Return the length of a specific segment in an initialized path
-     *
-     * @param segment   - the segment you to get the length of (0-2)
-     */
+    ///
+    /// Return the length of a specific segment in an initialized path
+    ///
+    /// - Parameter segment: the segment you to get the length of (0-2)
+    /// - Returns: the length of a specific segment
+    ///
     func length(ofSegment segment: Int) -> CGFloat {
         return normalizedSegmentLength(ofSegment: segment) * self.rho
     }
 
-    /**
-     * Return the normalized length of a specific segment in an initialized path
-     *
-     * @param segment    - the segment you want to get the length of (0-2)
-     */
+    /// 
+    /// Return the normalized length of a specific segment in an initialized path
+    ///
+    /// - Parameter segment: the segment you want to get the length of (0-2)
+    /// - Returns: normalized length of a specific segment
+    ///
     func normalizedSegmentLength(ofSegment segment: Int) -> CGFloat {
-        if !(0 ... 2).contains(segment) {
+        if !DubinsSegmentLengths.SegmentNumber.contains(segment) {
             return .infinity
         }
         

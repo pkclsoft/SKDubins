@@ -40,10 +40,16 @@
 import CoreGraphics
 
 enum DubinsResult {
-        case EDUBOK           /* No error */
-        case EDUBCOCONFIGS    /* Colocated configurations */
-        case EDUBPARAM        /* Path parameterisitation error */
-        case EDUBBADRHO       /* the rho value is invalid */
-        case EDUBNOPATH       /* no connection between configurations with this word */
-        case EDUABORT         /* abort sampling */
-    }
+    /// No error
+    case EDUBOK
+    /// Colocated configurations
+    case EDUBCOCONFIGS
+    /// Path parameterisitation error
+    case EDUBPARAM
+    /// The rho value is invalid
+    case EDUBBADRHO
+    /// No connection between configurations with this word
+    case EDUBNOPATH
+    /// Abort sampling
+    case EDUBABORT
+}
