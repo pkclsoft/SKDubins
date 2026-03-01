@@ -135,16 +135,16 @@ final class SKDubinsTests: XCTestCase {
         
         XCTAssertEqual(result, .EDUBOK)
         
-        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q0.value(atIndex: 0));
-        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q0.value(atIndex: 1));
-        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q0.value(atIndex: 2));
+        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q0.value(atIndex: 0))
+        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q0.value(atIndex: 1))
+        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q0.value(atIndex: 2))
         
         result = Dubins.dubins_path_sample(path: path, t: 4.0, q: qsamp)
         
         XCTAssertEqual(result, .EDUBOK)
-        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q1.value(atIndex: 0));
-        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q1.value(atIndex: 1));
-        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q1.value(atIndex: 2));
+        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q1.value(atIndex: 0))
+        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q1.value(atIndex: 1))
+        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q1.value(atIndex: 2))
     }
     
     func testSampleOutOfBounds() throws {
@@ -217,7 +217,7 @@ final class SKDubinsTests: XCTestCase {
     }
     
     func testSampleManyOptOutEarly() throws {
-        configure_inputs(a: 0.0, b: 0.0, d: 4.0);
+        configure_inputs(a: 0.0, b: 0.0, d: 4.0)
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
@@ -245,56 +245,62 @@ final class SKDubinsTests: XCTestCase {
             }
         }
     }
-    //
-    //    func endPoint() throws
-    //    {
-    //        configure_inputs(0.0, 0.0, 4.0);
-    //
-    //        // find the parameters for a single Dubin's word
-    //        DubinsPath path;
-    //        int err = dubins_path(&path, q0, q1, turning_radius, LSL);
-    //        ASSERT_EQ(err, EDUBOK);
-    //
-    //        double qsamp[3];
-    //        err = dubins_path_endpoint(&path, qsamp);
-    //        ASSERT_EQ(err, EDUBOK);
-    //        ASSERT_NEAR(qsamp[0], q1[0], 1e-8);
-    //        ASSERT_NEAR(qsamp[1], q1[1], 1e-8);
-    //        ASSERT_NEAR(qsamp[2], q1[2], 1e-8);
-    //    }
-    //
-    //    func extractSubpath() throws
-    //    {
-    //        configure_inputs(0.0, 0.0, 4.0);
-    //
-    //        // find the parameters for a single Dubin's word
-    //        DubinsPath path;
-    //        int err = dubins_path(&path, q0, q1, turning_radius, LSL);
-    //        ASSERT_EQ(err, EDUBOK);
-    //
-    //        DubinsPath subpath;
-    //        err = dubins_extract_subpath(&path, 2.0, &subpath);
-    //        ASSERT_EQ(err, 0);
-    //
-    //        double qsamp[3];
-    //        err = dubins_path_endpoint(&subpath, qsamp);
-    //        ASSERT_EQ(err, EDUBOK);
-    //        ASSERT_NEAR(qsamp[0], 2.0, 1e-8);
-    //        ASSERT_NEAR(qsamp[1], 0.0, 1e-8);
-    //        ASSERT_NEAR(qsamp[2], 0.0, 1e-8);
-    //    }
-    //
-    //    func extractInvalidSubpath() throws
-    //    {
-    //        configure_inputs(0.0, 0.0, 4.0);
-    //
-    //        // find the parameters for a single Dubin's word
-    //        DubinsPath path;
-    //        int err = dubins_path(&path, q0, q1, turning_radius, LSL);
-    //        ASSERT_EQ(err, EDUBOK);
-    //
-    //        DubinsPath subpath;
-    //        err = dubins_extract_subpath(&path, 8.0, &subpath);
-    //        ASSERT_NE(err, 0);
-    //    }
+    
+    func testEndPoint() throws {
+        configure_inputs(a: 0.0, b: 0.0, d: 4.0)
+        
+        // find the parameters for a single Dubin's word
+        let path: DubinsPath = DubinsPath()
+        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        
+        XCTAssertEqual(result, .EDUBOK)
+        
+        let qsamp: AgentState = AgentState()
+        
+        result = Dubins.dubins_path_endpoint(path: path, q: qsamp)
+        XCTAssertEqual(result, .EDUBOK)
+        
+        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q1.value(atIndex: 0), accuracy: 1e-8)
+        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q1.value(atIndex: 1), accuracy: 1e-8)
+        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q1.value(atIndex: 2), accuracy: 1e-8)
+    }
+    
+    func testExtractSubpath() throws {
+        configure_inputs(a: 0.0, b: 0.0, d: 4.0)
+        
+        // find the parameters for a single Dubin's word
+        let path: DubinsPath = DubinsPath()
+        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        
+        XCTAssertEqual(result, .EDUBOK)
+        
+        let subpath: DubinsPath = DubinsPath()
+        result = Dubins.dubins_extract_subpath(path: path, t: 2.0, newPath: subpath)
+        
+        XCTAssertEqual(result, .EDUBOK)
+        
+        let qsamp: AgentState = AgentState()
+        
+        result = Dubins.dubins_path_endpoint(path: subpath, q: qsamp)
+        XCTAssertEqual(result, .EDUBOK)
+        
+        XCTAssertEqual(qsamp.value(atIndex: 0), 2.0, accuracy: 1e-8)
+        XCTAssertEqual(qsamp.value(atIndex: 1), 0.0, accuracy: 1e-8)
+        XCTAssertEqual(qsamp.value(atIndex: 2), 0.0, accuracy: 1e-8)
+    }
+    
+    func testExtractInvalidSubpath() throws {
+        configure_inputs(a: 0.0, b: 0.0, d: 4.0)
+        
+        // find the parameters for a single Dubin's word
+        let path: DubinsPath = DubinsPath()
+        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        
+        XCTAssertEqual(result, .EDUBOK)
+        
+        let subpath: DubinsPath = DubinsPath()
+        result = Dubins.dubins_extract_subpath(path: path, t: 8.0, newPath: subpath)
+        
+        XCTAssertNotEqual(result, .EDUBOK)
+    }
 }
