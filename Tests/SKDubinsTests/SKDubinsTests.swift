@@ -7,13 +7,9 @@ import CGExtKit
 final class SKDubinsTests: XCTestCase {
     
     static var turning_radius: CGFloat = 0.0
-    static var q0: AgentState = AgentState()
-    static var q1: AgentState = AgentState()
+    static var q0: Configuration = Configuration()
+    static var q1: Configuration = Configuration()
     
-    //    init() {
-    //        Setup()
-    //    }
-    //
     func testExample() throws {
         // XCTest Documentation
         // https://developer.apple.com/documentation/xctest
@@ -28,19 +24,15 @@ final class SKDubinsTests: XCTestCase {
     }
     
     func configure_inputs(a: CGFloat, b: CGFloat, d: CGFloat) {
-        SKDubinsTests.q0 = AgentState()
-        SKDubinsTests.q0.pos = CGPointZero
-        SKDubinsTests.q0.theta = a
-        
-        SKDubinsTests.q1.pos = CGPoint(x: d, y: 0.0)
-        SKDubinsTests.q1.theta = b
+        SKDubinsTests.q0 = Configuration(withPos: CGPointZero, andTheta: a)
+        SKDubinsTests.q1 = Configuration(withPos: CGPoint(x: d, y: 0.0), andTheta: b)
     }
     
     func testShortestPath() throws {
         // find the shortest path
         let path: DubinsPath = DubinsPath()
         
-        let result: DubinsResult = Dubins.dubins_shortest_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius)
+        let result: DubinsResult = Dubins.shortest(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius)
         
         XCTAssertEqual(result, .EDUBOK)
     }
@@ -50,7 +42,7 @@ final class SKDubinsTests: XCTestCase {
         let path: DubinsPath = DubinsPath()
 
         // find the shortest path
-        let result: DubinsResult = Dubins.dubins_shortest_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: negativeTurnRadius)
+        let result: DubinsResult = Dubins.shortest(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: negativeTurnRadius)
         
         XCTAssertEqual(result, .EDUBBADRHO)
     }
@@ -60,7 +52,7 @@ final class SKDubinsTests: XCTestCase {
         let path: DubinsPath = DubinsPath()
         
         // find the shortest path
-        let result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LRL)
+        let result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LRL)
         
         XCTAssertEqual(result, .EDUBNOPATH)
     }
@@ -70,7 +62,7 @@ final class SKDubinsTests: XCTestCase {
         
         // find the shortest path
         let path: DubinsPath = DubinsPath()
-        let result: DubinsResult = Dubins.dubins_shortest_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius)
+        let result: DubinsResult = Dubins.shortest(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius)
 
         XCTAssertEqual(result, .EDUBOK)
 
@@ -81,7 +73,7 @@ final class SKDubinsTests: XCTestCase {
     func testSimplePath() throws {
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        let result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        let result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
     }
@@ -91,7 +83,7 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        let result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        let result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
@@ -108,7 +100,7 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        let result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        let result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
 
         
         XCTAssertEqual(result, .EDUBOK)
@@ -126,25 +118,22 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
-        let qsamp: AgentState = AgentState()
-        result = Dubins.dubins_path_sample(path: path, t: 0.0, q: qsamp)
+        let qsamp: Configuration = Configuration()
+        result = Dubins.sample(path: path, t: 0.0, q: qsamp)
         
         XCTAssertEqual(result, .EDUBOK)
         
-        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q0.value(atIndex: 0))
-        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q0.value(atIndex: 1))
-        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q0.value(atIndex: 2))
+        XCTAssertTrue(qsamp == SKDubinsTests.q0)
         
-        result = Dubins.dubins_path_sample(path: path, t: 4.0, q: qsamp)
+        result = Dubins.sample(path: path, t: 4.0, q: qsamp)
         
         XCTAssertEqual(result, .EDUBOK)
-        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q1.value(atIndex: 0))
-        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q1.value(atIndex: 1))
-        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q1.value(atIndex: 2))
+        
+        XCTAssertTrue(qsamp == SKDubinsTests.q1)
     }
     
     func testSampleOutOfBounds() throws {
@@ -152,20 +141,19 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
-        let qsamp: AgentState = AgentState()
+        let qsamp: Configuration = Configuration()
         
-        result = Dubins.dubins_path_sample(path: path, t: -1.0, q: qsamp)
+        result = Dubins.sample(path: path, t: -1.0, q: qsamp)
         XCTAssertEqual(result, .EDUBPARAM)
-        result = Dubins.dubins_path_sample(path: path, t: 5.0, q: qsamp)
+        result = Dubins.sample(path: path, t: 5.0, q: qsamp)
         XCTAssertEqual(result, .EDUBPARAM)
     }
-    
-    
-    func nop_callback(q: AgentState, t: CGFloat, data: inout Int?) -> DubinsResult {
+
+    func nop_callback(q: Configuration, t: CGFloat, data: inout Int?) -> DubinsResult {
         return .EDUBOK
     }
     
@@ -174,13 +162,13 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
         var noData: Int? = nil
         
-        result = Dubins.dubins_path_sample_many(path: path, stepSize: 1.0, cb: nop_callback, user_data: &noData)
+        result = Dubins.sampleEntirePath(path: path, stepSize: 1.0, cb: nop_callback, user_data: &noData)
         
         XCTAssertEqual(result, .EDUBOK)
     }
@@ -190,22 +178,22 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .RLR)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .RLR)
         
         XCTAssertEqual(result, .EDUBOK)
         
         var noData: Int? = nil
 
-        result = Dubins.dubins_path_sample_many(path: path, stepSize: 1.0, cb: nop_callback, user_data: &noData)
+        result = Dubins.sampleEntirePath(path: path, stepSize: 1.0, cb: nop_callback, user_data: &noData)
         
         XCTAssertEqual(result, .EDUBOK)
     }
     
-    func out_out_early_callback(q: AgentState, t: CGFloat, data: inout Int?) -> DubinsResult {
+    func out_out_early_callback(q: Configuration, t: CGFloat, data: inout Int?) -> DubinsResult {
         
         if data != nil {
             if data! > 2 {
-                return .EDUABORT
+                return .EDUBABORT
             }
             
             data! += 1
@@ -221,15 +209,15 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
         var count: Int? = 0
         
-        result = Dubins.dubins_path_sample_many(path: path, stepSize: 1.0, cb: out_out_early_callback, user_data: &count)
+        result = Dubins.sampleEntirePath(path: path, stepSize: 1.0, cb: out_out_early_callback, user_data: &count)
         
-        XCTAssertEqual(result, .EDUABORT)
+        XCTAssertEqual(result, .EDUBABORT)
         XCTAssertEqual(count, 3)
     }
     
@@ -238,7 +226,7 @@ final class SKDubinsTests: XCTestCase {
         let path: DubinsPath = DubinsPath()
         
         DubinsPathType.allCases.forEach { pathType in
-            let result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: pathType)
+            let result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: pathType)
             
             if result == .EDUBOK {
                 XCTAssertEqual(pathType, path.type)
@@ -251,18 +239,16 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
-        let qsamp: AgentState = AgentState()
+        let qsamp: Configuration = Configuration()
         
-        result = Dubins.dubins_path_endpoint(path: path, q: qsamp)
+        result = Dubins.endPoint(path: path, q: qsamp)
         XCTAssertEqual(result, .EDUBOK)
         
-        XCTAssertEqual(qsamp.value(atIndex: 0), SKDubinsTests.q1.value(atIndex: 0), accuracy: 1e-8)
-        XCTAssertEqual(qsamp.value(atIndex: 1), SKDubinsTests.q1.value(atIndex: 1), accuracy: 1e-8)
-        XCTAssertEqual(qsamp.value(atIndex: 2), SKDubinsTests.q1.value(atIndex: 2), accuracy: 1e-8)
+        XCTAssertTrue(qsamp == SKDubinsTests.q1)
     }
     
     func testExtractSubpath() throws {
@@ -270,23 +256,21 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
         let subpath: DubinsPath = DubinsPath()
-        result = Dubins.dubins_extract_subpath(path: path, t: 2.0, newPath: subpath)
+        result = Dubins.subPath(path: path, t: 2.0, newPath: subpath)
         
         XCTAssertEqual(result, .EDUBOK)
         
-        let qsamp: AgentState = AgentState()
+        let qsamp: Configuration = Configuration()
         
-        result = Dubins.dubins_path_endpoint(path: subpath, q: qsamp)
+        result = Dubins.endPoint(path: subpath, q: qsamp)
         XCTAssertEqual(result, .EDUBOK)
         
-        XCTAssertEqual(qsamp.value(atIndex: 0), 2.0, accuracy: 1e-8)
-        XCTAssertEqual(qsamp.value(atIndex: 1), 0.0, accuracy: 1e-8)
-        XCTAssertEqual(qsamp.value(atIndex: 2), 0.0, accuracy: 1e-8)
+        XCTAssertTrue(qsamp == Configuration(withPos: CGPoint(x: 2.0, y: 0.0), andTheta: 0.0))
     }
     
     func testExtractInvalidSubpath() throws {
@@ -294,12 +278,12 @@ final class SKDubinsTests: XCTestCase {
         
         // find the parameters for a single Dubin's word
         let path: DubinsPath = DubinsPath()
-        var result: DubinsResult = Dubins.dubins_path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
+        var result: DubinsResult = Dubins.path(path: path, q0: SKDubinsTests.q0, q1: SKDubinsTests.q1, rho: SKDubinsTests.turning_radius, pathType: .LSL)
         
         XCTAssertEqual(result, .EDUBOK)
         
         let subpath: DubinsPath = DubinsPath()
-        result = Dubins.dubins_extract_subpath(path: path, t: 8.0, newPath: subpath)
+        result = Dubins.subPath(path: path, t: 8.0, newPath: subpath)
         
         XCTAssertNotEqual(result, .EDUBOK)
     }
