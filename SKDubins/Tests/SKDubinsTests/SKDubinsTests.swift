@@ -152,7 +152,7 @@ final class SKDubinsTests: XCTestCase {
         result = Dubins.sample(path: path, t: 5.0, q: qsamp)
         XCTAssertEqual(result, .EDUBPARAM)
     }
-
+    
     func nop_callback(q: Configuration, t: CGFloat, data: inout Int?) -> DubinsResult {
         return .EDUBOK
     }

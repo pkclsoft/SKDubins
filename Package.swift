@@ -22,11 +22,13 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "SKDubins",
-            dependencies: ["CGExtKit"]
+            dependencies: ["CGExtKit"],
+            path: "SKDubins/Sources/SKDubins"
         ),
         .testTarget(
             name: "SKDubinsTests",
-            dependencies: ["SKDubins"]
+            dependencies: ["SKDubins"],
+            path: "SKDubins/Tests/SKDubinsTests"
         ),
     ]
 )

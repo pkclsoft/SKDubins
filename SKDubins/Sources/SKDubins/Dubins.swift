@@ -38,7 +38,7 @@
 
 import CoreGraphics
 
-class Dubins {
+public class Dubins {
     
     /**
      * Callback function for path sampling
@@ -53,14 +53,14 @@ class Dubins {
     static let EPSILON: CGFloat = (10e-10)
     
     /// The segment type, Left, Straight, or Right
-    enum SegmentType: Int {
+    private enum SegmentType: Int {
         case L_SEG
         case S_SEG
         case R_SEG
     }
 
     /* The segment types for each of the Path types */
-    static let DIRDATA: [[SegmentType]] = [
+    private static let DIRDATA: [[SegmentType]] = [
         [ .L_SEG, .S_SEG, .L_SEG ],
         [ .L_SEG, .S_SEG, .R_SEG ],
         [ .R_SEG, .S_SEG, .L_SEG ],
@@ -177,7 +177,7 @@ class Dubins {
     ///   - rho:  turning radius of the vehicle (forward velocity divided by maximum angular velocity)
     /// - Returns: a status of the computation.
     ///
-    static func shortest(path: DubinsPath, q0: Configuration, q1: Configuration, rho: CGFloat) -> DubinsResult {
+    public static func shortest(path: DubinsPath, q0: Configuration, q1: Configuration, rho: CGFloat) -> DubinsResult {
         var errcode: DubinsResult
         let results: DubinsIntermediateResults = DubinsIntermediateResults()
         
@@ -230,7 +230,7 @@ class Dubins {
     ///   - pathType: the specific path type to use
     /// - Returns: a status of the computation.
     ///
-    static func path(path: DubinsPath, q0: Configuration, q1: Configuration, rho: CGFloat, pathType: DubinsPathType) -> DubinsResult {
+    public static func path(path: DubinsPath, q0: Configuration, q1: Configuration, rho: CGFloat, pathType: DubinsPathType) -> DubinsResult {
         var errcode: DubinsResult
         let results: DubinsIntermediateResults = DubinsIntermediateResults()
 
@@ -258,7 +258,7 @@ class Dubins {
     ///   - qi: the start configuration
     ///   - qt: the computed configuration
     ///   - type: the segment type
-    static func segment(t: CGFloat, qi: Configuration, qt: Configuration, type: SegmentType) {
+    private static func segment(t: CGFloat, qi: Configuration, qt: Configuration, type: SegmentType) {
         let st: CGFloat = sin(qi.theta)
         let ct: CGFloat = cos(qi.theta)
         
@@ -290,7 +290,7 @@ class Dubins {
     ///   - q: the configuration result
     /// - Returns: a status of the computation.
     ///
-    static func sample(path: DubinsPath, t: CGFloat, q: Configuration) -> DubinsResult {
+    public static func sample(path: DubinsPath, t: CGFloat, q: Configuration) -> DubinsResult {
         /* tprime is the normalised variant of the parameter t */
         let tprime: CGFloat = t / path.rho
         let qi: Configuration = Configuration() /* The translated initial configuration */
@@ -342,7 +342,7 @@ class Dubins {
     ///   - user_data: optional information to pass on to the callback
     /// - Returns: a status of the computation.
     ///
-    static func sampleEntirePath(path: DubinsPath, stepSize: CGFloat, cb: DubinsPathSamplingCallback, user_data: inout Int?) -> DubinsResult {
+    public static func sampleEntirePath(path: DubinsPath, stepSize: CGFloat, cb: DubinsPathSamplingCallback, user_data: inout Int?) -> DubinsResult {
         var retcode: DubinsResult = .EDUBOK
 
         let q: Configuration = Configuration()
@@ -376,7 +376,7 @@ class Dubins {
     ///   - q: the configuration result
     /// - Returns: a status of the computation.
     ///
-    static func endPoint(path: DubinsPath, q: Configuration) -> DubinsResult {
+    public static func endPoint(path: DubinsPath, q: Configuration) -> DubinsResult {
         return sample(path: path, t: path.length() - Dubins.EPSILON, q: q)
     }
 
@@ -389,7 +389,7 @@ class Dubins {
     ///   - newPath: the resultant path
     /// - Returns: a status of the computation.
     ///
-    static func subPath(path: DubinsPath, t: CGFloat, newPath: DubinsPath) -> DubinsResult {
+    public static func subPath(path: DubinsPath, t: CGFloat, newPath: DubinsPath) -> DubinsResult {
         /* calculate the true parameter */
         let tprime: CGFloat = t / path.rho
 

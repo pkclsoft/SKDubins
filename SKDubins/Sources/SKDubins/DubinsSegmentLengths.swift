@@ -1,5 +1,5 @@
 //
-//  DubinsPath.swift
+//  DubinsSegmentLengths.swift
 //  SKDubins
 //
 //  Created by Peter Easdown on 28/2/2026.
@@ -36,68 +36,55 @@
  * THE SOFTWARE.
  */
 
-
 import CoreGraphics
 
-class DubinsPath {
-
-    /// the initial configuration
-    var qi: Configuration
-    /// the lengths of the three segments
-    var param: DubinsSegmentLengths
-    /// model forward velocity / model angular velocity
-    var rho: CGFloat
-    /// the path type described 
-    var type: DubinsPathType?
+/// This structure is used to store the length of each of the three segments of a path.
+public struct DubinsSegmentLengths {
     
+    public static let SegmentNumber = 0 ... 2
+    
+    /// The array of segment lengths.
+    private var segmentLengths: [CGFloat]
+    
+    /// Initializer, starting with lengths of 0.0.
     init() {
-        qi = Configuration()
-        param = DubinsSegmentLengths()
-        rho = 0.0
-        type = nil
+        segmentLengths = [0.0, 0.0, 0.0]
     }
     
-    init(qi: Configuration, param: DubinsSegmentLengths, rho: CGFloat, type: DubinsPathType) {
-        self.qi = qi
-        self.param = param
-        self.rho = rho
-        self.type = type
-    }
-    
-    ///
-    /// Calculate the length of an initialised path
-    ///
-    func length() -> CGFloat {
-        var length: CGFloat = self.param.totalLength()
-        
-        length = length * self.rho
-        
-        return length
-    }
-
-    
-    ///
-    /// Return the length of a specific segment in an initialized path
-    ///
-    /// - Parameter segment: the segment you to get the length of (0-2)
-    /// - Returns: the length of a specific segment
-    ///
+    /// Returns the length of the specified segment (0 .. 2)
+    /// - Parameter segment: The segment number (0 .. 2)
+    /// - Returns: the length of the specified segment
     func length(ofSegment segment: Int) -> CGFloat {
-        return normalizedSegmentLength(ofSegment: segment) * self.rho
+        assert(DubinsSegmentLengths.SegmentNumber.contains(segment))
+        
+        return segmentLengths[segment]
     }
-
-    /// 
-    /// Return the normalized length of a specific segment in an initialized path
-    ///
-    /// - Parameter segment: the segment you want to get the length of (0-2)
-    /// - Returns: normalized length of a specific segment
-    ///
-    func normalizedSegmentLength(ofSegment segment: Int) -> CGFloat {
-        if !DubinsSegmentLengths.SegmentNumber.contains(segment) {
-            return .infinity
+    
+    mutating func setLength(ofSegment segment: Int, to: CGFloat) {
+        assert(DubinsSegmentLengths.SegmentNumber.contains(segment))
+        
+        segmentLengths[segment] = to
+    }
+    
+    /// Returns the accumulated length of the path.
+    /// - Returns: The accumulated length of all segments
+    func totalLength() -> CGFloat {
+        return lengthOf(segmentsInRange: DubinsSegmentLengths.SegmentNumber)
+    }
+    
+    
+    /// Returns the accumulated length of the specified segments.
+    /// - Parameter segmentsInRange: the range of segments
+    /// - Returns: The total length of the specified segments
+    func lengthOf(segmentsInRange: ClosedRange<Int>) -> CGFloat {
+        assert(DubinsSegmentLengths.SegmentNumber.overlaps(segmentsInRange))
+        
+        var result: CGFloat = 0.0
+        
+        for segmentIndex in segmentsInRange {
+            result += segmentLengths[segmentIndex]
         }
         
-        return param.length(ofSegment: segment)
+        return result
     }
-
 }
