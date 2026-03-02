@@ -1,5 +1,5 @@
 //
-//  DubinsPathType.swift
+//  DubinsResult.swift
 //  SKDubins
 //
 //  Created by Peter Easdown on 28/2/2026.
@@ -39,11 +39,17 @@
 
 import CoreGraphics
 
-enum DubinsPathType : Int, CaseIterable {
-    case LSL = 0
-    case LSR
-    case RSL
-    case RSR
-    case RLR
-    case LRL
+public enum DubinsResult {
+    /// No error
+    case EDUBOK
+    /// Colocated configurations
+    case EDUBCOCONFIGS
+    /// Path parameterisitation error
+    case EDUBPARAM
+    /// The rho value is invalid
+    case EDUBBADRHO
+    /// No connection between configurations with this word
+    case EDUBNOPATH
+    /// Abort sampling
+    case EDUBABORT
 }

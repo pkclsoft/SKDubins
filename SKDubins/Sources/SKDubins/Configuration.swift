@@ -41,34 +41,34 @@ import CGExtKit
 
 /// A configuration describes (typically) the start and end of the path.  It can also be used (and is) to
 /// describe a sampled point along the path.
-class Configuration {
+public class Configuration {
     
     /// Initialises an empty/default configuration.
-    init() {
+    public init() {
         pos = CGPointZero
         theta = 0.0
     }
     
-    init(withPos: CGPoint, andTheta: CGFloat) {
+    public init(withPos: CGPoint, andTheta: CGFloat) {
         pos = withPos
         theta = andTheta
     }
     
     /// Returns a string representation of the object.
     /// - Returns: A simple string.
-    func debugDescription() -> String {
+    public func debugDescription() -> String {
         return "(\(pos.x), \(pos.y), \(theta))"
     }
     
     /// The position of the configuration along the path.
-    var pos: CGPoint
+    public var pos: CGPoint
     /// The heading of the agent at the position provided by `pos`.
-    var theta: CGFloat
+    public var theta: CGFloat
 }
 
 extension Configuration {
     
-    static func == (left: Configuration, right: Configuration) -> Bool {
+    public static func == (left: Configuration, right: Configuration) -> Bool {
         return CGPoint.equals(left.pos, right.pos) && CGFloat.equals(left.theta, right.theta)
     }
     

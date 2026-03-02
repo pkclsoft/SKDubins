@@ -1,5 +1,5 @@
 //
-//  DubinsSegmentLengths.swift
+//  DubinsPathType.swift
 //  SKDubins
 //
 //  Created by Peter Easdown on 28/2/2026.
@@ -36,45 +36,14 @@
  * THE SOFTWARE.
  */
 
+
 import CoreGraphics
 
-/// This structure is used to store the length of each of the three segments of a path.
-struct DubinsSegmentLengths {
-    
-    public static let SegmentNumber = 0 ... 2
-    
-    /// The array of segment lengths.
-    private var segmentLengths: [CGFloat]
-    
-    /// Initializer, starting with lengths of 0.0.
-    init() {
-        segmentLengths = [0.0, 0.0, 0.0]
-    }
-    
-    /// Returns the length of the specified segment (0 .. 2)
-    /// - Parameter segment: The segment number (0 .. 2)
-    /// - Returns: the length of the specified segment
-    func length(ofSegment segment: Int) -> CGFloat {
-        assert(DubinsSegmentLengths.SegmentNumber.contains(segment))
-        
-        return segmentLengths[segment]
-    }
-    
-    mutating func setLength(ofSegment segment: Int, to: CGFloat) {
-        assert(DubinsSegmentLengths.SegmentNumber.contains(segment))
-        
-        segmentLengths[segment] = to
-    }
-    
-    /// Returns the accumulated length of the path.
-    /// - Returns: The accumulated length of all segments
-    func totalLength() -> CGFloat {
-        var result: CGFloat = 0.0
-        
-        segmentLengths.forEach { segmentLength in
-            result += segmentLength
-        }
-        
-        return result
-    }
+public enum DubinsPathType : Int, CaseIterable {
+    case LSL = 0
+    case LSR
+    case RSL
+    case RSR
+    case RLR
+    case LRL
 }
