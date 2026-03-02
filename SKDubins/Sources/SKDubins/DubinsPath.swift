@@ -84,14 +84,14 @@ public class DubinsPath {
     /// - Returns: the length of a specific segment
     ///
     public func length(ofSegment segment: Int) -> CGFloat {
-        return normalizedSegmentLength(ofSegment: segment) * self.rho
+        return normalizedLength(ofSegment: segment) * self.rho
     }
 
     /// Returns the accumulated length of the specified segments.
     /// - Parameter segmentsInRange: the range of segments
     /// - Returns: The total length of the specified segments
-    func lengthOf(segmentsInRange: ClosedRange<Int>) -> CGFloat {
-        return normalizedLengthOf(segmentsInRange: segmentsInRange) * self.rho
+    func length(ofSegmentsInRange segmentsInRange: ClosedRange<Int>) -> CGFloat {
+        return normalizedLength(ofSegmentsInRange: segmentsInRange) * self.rho
     }
     
     ///
@@ -100,7 +100,7 @@ public class DubinsPath {
     /// - Parameter segment: the segment you want to get the length of (0-2)
     /// - Returns: normalized length of a specific segment
     ///
-    public func normalizedSegmentLength(ofSegment segment: Int) -> CGFloat {
+    public func normalizedLength(ofSegment segment: Int) -> CGFloat {
         if !DubinsSegmentLengths.SegmentNumber.contains(segment) {
             return .infinity
         }
@@ -111,12 +111,12 @@ public class DubinsPath {
     /// Returns the accumulated normalized length of the specified segments.
     /// - Parameter segmentsInRange: the range of segments
     /// - Returns: The total normalized length of the specified segments
-    func normalizedLengthOf(segmentsInRange: ClosedRange<Int>) -> CGFloat {
+    func normalizedLength(ofSegmentsInRange segmentsInRange: ClosedRange<Int>) -> CGFloat {
         if !DubinsSegmentLengths.SegmentNumber.overlaps(segmentsInRange) {
             return .infinity
         }
         
-        return param.lengthOf(segmentsInRange: segmentsInRange)
+        return param.length(ofSegmentsInRange: segmentsInRange)
     }
     
     // CGPath Building
@@ -160,12 +160,11 @@ public class DubinsPath {
         /// The final position on the path.
         var finalPosition: Configuration = Configuration()
         
-        var result = Dubins.sample(path: self, t: self.length(ofSegment: 0), q: firstTangent)
-        
-        if Dubins.sample(path: self, t: self.length(ofSegment: 0) / 2.0, q: firstCP) == .EDUBOK &&
-            Dubins.sample(path: self, t: self.lengthOf(segmentsInRange: 0 ... 1), q: secondTangent) == .EDUBOK &&
-            Dubins.sample(path: self, t:  self.lengthOf(segmentsInRange: 0 ... 1) + self.length(ofSegment: 2) / 2.0, q: secondCP) == .EDUBOK &&
-            Dubins.sample(path: self, t:  self.lengthOf(segmentsInRange: 0 ... 2), q: finalPosition) == .EDUBOK {
+        if Dubins.sample(path: self, t: self.length(ofSegment: 0), q: firstTangent) == .EDUBOK &&
+            Dubins.sample(path: self, t: self.length(ofSegment: 0) / 2.0, q: firstCP) == .EDUBOK &&
+            Dubins.sample(path: self, t: self.length(ofSegment: 0) + self.length(ofSegment: 1), q: secondTangent) == .EDUBOK &&
+            Dubins.sample(path: self, t:  self.length(ofSegment: 0) + self.length(ofSegment: 1) + self.length(ofSegment: 2) / 2.0, q: secondCP) == .EDUBOK &&
+            Dubins.sample(path: self, t:  self.length(ofSegment: 0) + self.length(ofSegment: 1) + self.length(ofSegment: 2), q: finalPosition) == .EDUBOK {
             
             firstCP.pos = CGPoint(x: 2.0 * firstCP.pos.x - 0.5 * qi.pos.x - 0.5 * firstTangent.pos.x,
                                   y: 2.0 * firstCP.pos.y - 0.5 * qi.pos.y - 0.5 * firstTangent.pos.y)

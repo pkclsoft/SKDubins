@@ -69,15 +69,15 @@ public struct DubinsSegmentLengths {
     /// Returns the accumulated length of the path.
     /// - Returns: The accumulated length of all segments
     func totalLength() -> CGFloat {
-        return lengthOf(segmentsInRange: DubinsSegmentLengths.SegmentNumber)
+        return length(ofSegmentsInRange: DubinsSegmentLengths.SegmentNumber)
     }
     
     
     /// Returns the accumulated length of the specified segments.
     /// - Parameter segmentsInRange: the range of segments
     /// - Returns: The total length of the specified segments
-    func lengthOf(segmentsInRange: ClosedRange<Int>) -> CGFloat {
-        assert(DubinsSegmentLengths.SegmentNumber.overlaps(segmentsInRange))
+    func length(ofSegmentsInRange segmentsInRange: ClosedRange<Int>) -> CGFloat {
+        assert(DubinsSegmentLengths.SegmentNumber.contains(segmentsInRange))
         
         var result: CGFloat = 0.0
         

@@ -53,7 +53,7 @@ class GameScene: SKScene {
         
         // get the shortest path
         //
-        let result = Dubins.shortest(path: path, q0: startConf, q1: endConf, rho: 30.0)
+        let result = Dubins.shortest(path: path, q0: startConf, q1: endConf, rho: carSprite.size.height / 2.0)
         
         // if that was successfull, draw the path and send the car along it.
         //
@@ -66,7 +66,6 @@ class GameScene: SKScene {
                 pathNode.strokeColor = .yellow
                 pathNode.lineWidth = 5.0
                 pathNode.zPosition = 2.0
-                pathNode.name = "fred"
                 pathNode.zPosition = 200.0
                 self.addChild(pathNode)
             }
