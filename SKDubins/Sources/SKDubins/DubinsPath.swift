@@ -167,12 +167,16 @@ public class DubinsPath {
             Dubins.sample(path: self, t:  self.lengthOf(segmentsInRange: 0 ... 1) + self.length(ofSegment: 2) / 2.0, q: secondCP) == .EDUBOK &&
             Dubins.sample(path: self, t:  self.lengthOf(segmentsInRange: 0 ... 2), q: finalPosition) == .EDUBOK {
             
-            firstCP.pos = CGPoint(x: 2.0 * firstCP.pos.x - 0.5 * qi.pos.x - 0.5 * firstTangent.pos.x, y: 2.0 * firstCP.pos.y - 0.5 * qi.pos.y - 0.5 * firstTangent.pos.y)
-            secondCP.pos = CGPoint(x: 2.0 * secondCP.pos.x - 0.5 * secondTangent.pos.x - 0.5 * finalPosition.pos.x, y: 2.0 * secondCP.pos.y - 0.5 * secondTangent.pos.y - 0.5 * finalPosition.pos.y)
+            firstCP.pos = CGPoint(x: 2.0 * firstCP.pos.x - 0.5 * qi.pos.x - 0.5 * firstTangent.pos.x,
+                                  y: 2.0 * firstCP.pos.y - 0.5 * qi.pos.y - 0.5 * firstTangent.pos.y)
+            
+            secondCP.pos = CGPoint(x: 2.0 * secondCP.pos.x - 0.5 * secondTangent.pos.x - 0.5 * finalPosition.pos.x,
+                                   y: 2.0 * secondCP.pos.y - 0.5 * secondTangent.pos.y - 0.5 * finalPosition.pos.y)
             
             outputPath?.addQuadCurve(to: firstTangent.pos, control: firstCP.pos)
             outputPath?.addLine(to: secondTangent.pos)
             outputPath?.addQuadCurve(to: finalPosition.pos, control: secondCP.pos)
+            
             let result = outputPath
             outputPath = nil
             
