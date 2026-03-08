@@ -162,9 +162,9 @@ public class DubinsPath {
         
         if Dubins.sample(path: self, t: self.length(ofSegment: 0), q: firstTangent) == .EDUBOK &&
             Dubins.sample(path: self, t: self.length(ofSegment: 0) / 2.0, q: firstCP) == .EDUBOK &&
-            Dubins.sample(path: self, t: self.length(ofSegment: 0) + self.length(ofSegment: 1), q: secondTangent) == .EDUBOK &&
-            Dubins.sample(path: self, t:  self.length(ofSegment: 0) + self.length(ofSegment: 1) + self.length(ofSegment: 2) / 2.0, q: secondCP) == .EDUBOK &&
-            Dubins.sample(path: self, t:  self.length(ofSegment: 0) + self.length(ofSegment: 1) + self.length(ofSegment: 2), q: finalPosition) == .EDUBOK {
+            Dubins.sample(path: self, t: self.length(ofSegmentsInRange: 0 ... 1), q: secondTangent) == .EDUBOK &&
+            Dubins.sample(path: self, t:  self.length(ofSegmentsInRange: 0 ... 1) + self.length(ofSegment: 2) / 2.0, q: secondCP) == .EDUBOK &&
+            Dubins.sample(path: self, t: self.length(), q: finalPosition) == .EDUBOK {
             
             firstCP.pos = CGPoint(x: 2.0 * firstCP.pos.x - 0.5 * qi.pos.x - 0.5 * firstTangent.pos.x,
                                   y: 2.0 * firstCP.pos.y - 0.5 * qi.pos.y - 0.5 * firstTangent.pos.y)
